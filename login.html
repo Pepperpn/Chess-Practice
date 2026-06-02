@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Log In – ChessPractice</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg:#1a1a1a; --surface:#262626; --surface2:#2e2e2e; --border:#3a3a3a;
+      --green:#81b64c; --text:#e0e0e0; --text-muted:#999;
+    }
+    body { font-family:'Segoe UI',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+    nav {
+      background:var(--surface); border-bottom:1px solid var(--border);
+      padding:0 2rem; display:flex; align-items:center; height:56px; gap:2rem;
+    }
+    .nav-logo { font-size:1.4rem; font-weight:700; color:var(--green); text-decoration:none; display:flex; align-items:center; gap:0.5rem; }
+    .nav-logo span { color:var(--text); }
+    .nav-links { display:flex; gap:0.25rem; }
+    .nav-links a { color:var(--text-muted); text-decoration:none; padding:0.4rem 0.85rem; border-radius:6px; font-size:0.95rem; }
+    .nav-links a:hover { background:var(--surface2); color:var(--text); }
+
+    .center { display:flex; align-items:flex-start; justify-content:center; padding:3rem 1rem; }
+    .card {
+      background:var(--surface); border:1px solid var(--border); border-radius:16px;
+      padding:2rem; width:100%; max-width:400px;
+    }
+    .card h1 { font-size:1.5rem; margin-bottom:0.3rem; text-align:center; }
+    .card .tagline { color:var(--text-muted); font-size:0.9rem; text-align:center; margin-bottom:1.5rem; }
+
+    .tabs { display:flex; background:var(--surface2); border-radius:8px; padding:3px; margin-bottom:1.5rem; }
+    .tabs button { flex:1; background:none; border:none; color:var(--text-muted); padding:0.6rem; border-radius:6px; cursor:pointer; font-size:0.95rem; font-weight:600; }
+    .tabs button.active { background:var(--green); color:#111; }
+
+    .field { margin-bottom:1rem; }
+    .field label { display:block; font-size:0.82rem; color:var(--text-muted); margin-bottom:0.35rem; }
+    .field input {
+      width:100%; background:var(--surface2); border:1px solid var(--border); color:var(--text);
+      padding:0.7rem 0.9rem; border-radius:8px; font-size:0.95rem;
+    }
+    .field input:focus { outline:none; border-color:var(--green); }
+
+    .btn {
+      width:100%; padding:0.8rem; border:none; border-radius:8px; background:var(--green);
+      color:#111; font-size:1rem; font-weight:700; cursor:pointer; transition:opacity .15s;
+    }
+    .btn:hover { opacity:0.9; } .btn:disabled { opacity:0.5; cursor:default; }
+
+    .divider { display:flex; align-items:center; gap:0.75rem; margin:1.25rem 0; color:var(--text-muted); font-size:0.8rem; }
+    .divider::before, .divider::after { content:''; flex:1; height:1px; background:var(--border); }
+
+    .btn-google {
+      width:100%; padding:0.7rem; border:1px solid var(--border); border-radius:8px;
+      background:#fff; color:#3c4043; font-size:0.95rem; font-weight:600; cursor:pointer;
+      display:flex; align-items:center; justify-content:center; gap:0.6rem; transition:opacity .15s;
+    }
+    .btn-google:hover { opacity:0.92; }
+    .btn-google svg { width:18px; height:18px; }
+
+    .msg { margin-top:1rem; padding:0.75rem 1rem; border-radius:8px; font-size:0.88rem; display:none; }
+    .msg.show { display:block; }
+    .msg.err { background:#3a2020; border:1px solid #e05555; color:#f0a0a0; }
+    .msg.ok  { background:#22331a; border:1px solid var(--green); color:#bfe39a; }
+    .msg.info{ background:var(--surface2); border:1px solid var(--border); color:var(--text-muted); }
+
+    .config-warn {
+      background:#332a1a; border:1px solid #c8a93a; color:#e8d28a;
+      border-radius:10px; padding:1rem; font-size:0.85rem; line-height:1.5; margin-bottom:1.5rem;
+    }
+    .config-warn code { background:#1a1a1a; padding:1px 5px; border-radius:4px; }
+    .back { text-align:center; margin-top:1.25rem; }
+    .back a { color:var(--text-muted); font-size:0.85rem; text-decoration:none; }
+    .back a:hover { color:var(--green); }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="index.html">♟ <span>Chess</span>Practice</a>
+  <div class="nav-links">
+    <a href="index.html">Home</a>
+    <a href="practice.html">Practice</a>
+    <a href="openings.html">Openings</a>
+    <a href="puzzles.html">Puzzles</a>
+    <a href="review.html">Review</a>
+  </div>
+</nav>
+
+<div class="center">
+  <div class="card">
+    <h1>♟ ChessPractice</h1>
+    <div class="tagline">Save your puzzles and game reviews.</div>
+
+    <div id="configWarn" class="config-warn" style="display:none">
+      <strong>Login isn't set up yet.</strong><br>
+      Open <code>supabase-config.js</code> and paste your Supabase <em>Project URL</em>
+      and <em>anon public key</em> (Supabase dashboard → Settings → API), then run
+      <code>supabase_setup.sql</code> in the SQL editor. See <code>SETUP_SUPABASE.md</code> for the full walkthrough.
+    </div>
+
+    <div id="formWrap">
+      <div class="tabs">
+        <button id="tabLogin" class="active">Log In</button>
+        <button id="tabSignup">Sign Up</button>
+      </div>
+
+      <button type="button" class="btn-google" id="googleBtn">
+        <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+        Continue with Google
+      </button>
+
+      <div class="divider">or with email</div>
+
+      <form id="authForm">
+        <div class="field" id="usernameField" style="display:none">
+          <label for="username">Username</label>
+          <input type="text" id="username" autocomplete="username" placeholder="e.g. PepperKnight" />
+        </div>
+        <div class="field">
+          <label for="email">Email</label>
+          <input type="email" id="email" autocomplete="email" placeholder="you@example.com" required />
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input type="password" id="password" autocomplete="current-password" placeholder="••••••••" required minlength="6" />
+        </div>
+        <button type="submit" class="btn" id="submitBtn">Log In</button>
+      </form>
+
+      <div class="msg" id="msg"></div>
+    </div>
+
+    <div class="back"><a href="index.html">← Back to site</a></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script src="auth.js"></script>
+<script>
+(function () {
+  var mode = 'login'; // 'login' | 'signup'
+  var $ = function (id) { return document.getElementById(id); };
+
+  function qparam(name) {
+    var m = new RegExp('[?&]' + name + '=([^&]+)').exec(window.location.search);
+    return m ? decodeURIComponent(m[1]) : null;
+  }
+  var nextPage = qparam('next') || 'index.html';
+
+  function showMsg(text, cls) { var m = $('msg'); m.textContent = text; m.className = 'msg show ' + cls; }
+  function hideMsg() { $('msg').className = 'msg'; }
+
+  function setMode(m) {
+    mode = m;
+    var login = m === 'login';
+    $('tabLogin').classList.toggle('active', login);
+    $('tabSignup').classList.toggle('active', !login);
+    $('usernameField').style.display = login ? 'none' : 'block';
+    $('submitBtn').textContent = login ? 'Log In' : 'Create Account';
+    $('password').autocomplete = login ? 'current-password' : 'new-password';
+    hideMsg();
+  }
+  $('tabLogin').onclick = function () { setMode('login'); };
+  $('tabSignup').onclick = function () { setMode('signup'); };
+
+  // If Supabase isn't configured, show the warning and disable the form.
+  if (!window.ChessAuth || !window.ChessAuth.configured) {
+    $('configWarn').style.display = 'block';
+    $('formWrap').style.display = 'none';
+    return;
+  }
+
+  // Already logged in? Bounce to the site (or to the page they came from).
+  ChessAuth.getUser().then(function (user) {
+    if (user) window.location.href = nextPage;
+  });
+
+  // Google sign-in (redirects to Google, then back to nextPage).
+  $('googleBtn').addEventListener('click', async function () {
+    hideMsg();
+    var r = await ChessAuth.signInWithGoogle(nextPage);
+    if (r && r.error) {
+      var msg = (r.error.message || '').toLowerCase();
+      if (msg.indexOf('not enabled') > -1 || msg.indexOf('unsupported provider') > -1) {
+        showMsg('Google sign-in isn’t set up yet. Use email and password below, or enable the Google provider in Supabase (see SETUP_SUPABASE.md).', 'info');
+      } else {
+        showMsg(r.error.message, 'err');
+      }
+    }
+  });
+
+  $('authForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    hideMsg();
+    var email = $('email').value.trim();
+    var password = $('password').value;
+    var username = $('username').value.trim();
+    $('submitBtn').disabled = true;
+
+    try {
+      if (mode === 'signup') {
+        var r = await ChessAuth.signUp(email, password, username);
+        if (r.error) { showMsg(r.error.message, 'err'); }
+        else if (r.data && r.data.session) {
+          showMsg('Account created! Redirecting…', 'ok');
+          setTimeout(function () { window.location.href = nextPage; }, 700);
+        } else {
+          showMsg('Account created! Check your email to confirm, then log in. '
+            + '(You can disable this in Supabase → Authentication → Providers → Email → "Confirm email".)', 'info');
+          setMode('login');
+        }
+      } else {
+        var r2 = await ChessAuth.signIn(email, password);
+        if (r2.error) { showMsg(r2.error.message, 'err'); }
+        else {
+          showMsg('Welcome back! Redirecting…', 'ok');
+          setTimeout(function () { window.location.href = nextPage; }, 600);
+        }
+      }
+    } catch (err) {
+      showMsg('Something went wrong: ' + (err && err.message ? err.message : err), 'err');
+    }
+    $('submitBtn').disabled = false;
+  });
+
+  setMode('login');
+})();
+</script>
+</body>
+</html>

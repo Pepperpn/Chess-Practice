@@ -1,0 +1,2174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Puzzles – ChessPractice</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #1a1a1a; --surface: #262626; --surface2: #2e2e2e;
+      --border: #3a3a3a; --green: #81b64c; --green-dark: #6a9a3a;
+      --text: #e0e0e0; --text-muted: #999;
+      --light-sq: #eeeed2; --dark-sq: #769656;
+      --highlight: rgba(255,220,0,0.45);
+    }
+    html, body { height: 100%; overflow: hidden; }
+    body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); }
+
+    nav {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 0 2rem; display: flex; align-items: center; height: 56px; gap: 2rem;
+    }
+    .nav-logo { font-size: 1.4rem; font-weight: 700; color: var(--green); text-decoration: none; display: flex; align-items: center; gap: 0.5rem; }
+    .nav-logo span { color: var(--text); }
+    .nav-links { display: flex; gap: 0.25rem; }
+    .nav-links a { color: var(--text-muted); text-decoration: none; padding: 0.4rem 0.85rem; border-radius: 6px; font-size: 0.95rem; transition: background 0.15s, color 0.15s; }
+    .nav-links a:hover, .nav-links a.active { background: var(--surface2); color: var(--text); }
+    .nav-login { margin-left: auto; background: var(--green); color: #1a1a1a; font-weight: 600; text-decoration: none; padding: 0.4rem 1.1rem; border-radius: 6px; font-size: 0.9rem; transition: background 0.15s; }
+    .nav-login:hover { background: var(--green-dark); }
+
+    .layout { height: calc(100vh - 56px); display: flex; align-items: stretch; }
+
+    /* BOARD */
+    .board-wrap { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1.25rem; gap: 0.35rem; }
+    .board-nav { display: flex; align-items: center; gap: 1rem; margin-top: 0.25rem; }
+    .nav-arrow {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); font-size: 1.2rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .nav-arrow:hover { background: var(--green); border-color: var(--green); color: #111; }
+    .nav-label { font-size: 0.85rem; color: var(--text-muted); min-width: 50px; text-align: center; font-family: monospace; }
+    .board-area { display: flex; align-items: flex-start; gap: 0.3rem; }
+    .coord-rank { display: flex; flex-direction: column; justify-content: space-around; height: calc(var(--sq, 60px) * 8 + 6px); padding: 3px 0; }
+    .coord-rank span { font-size: 0.7rem; color: var(--text-muted); height: var(--sq, 60px); display: flex; align-items: center; justify-content: center; }
+    .board-container { position: relative; display: inline-block; line-height: 0; }
+    #board {
+      display: grid;
+      grid-template-columns: repeat(8, var(--sq, 60px));
+      grid-template-rows: repeat(8, var(--sq, 60px));
+      border: 3px solid var(--border); border-radius: 2px; overflow: hidden;
+    }
+    .sq {
+      width: var(--sq, 60px); height: var(--sq, 60px);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; position: relative; user-select: none;
+    }
+    .sq.light { background: var(--light-sq); }
+    .sq.dark  { background: var(--dark-sq); }
+    .sq.selected { background: rgba(20,85,0,0.55) !important; }
+    .sq.moved-from { background: rgba(255,220,0,0.35) !important; }
+    .sq.moved-to   { background: rgba(255,220,0,0.55) !important; }
+    .sq.hint-sq { background: rgba(0,160,255,0.45) !important; }
+    .sq.legal::after {
+      content: ''; position: absolute;
+      width: 32%; height: 32%; border-radius: 50%;
+      background: rgba(0,0,0,0.22); pointer-events: none;
+    }
+    .sq.legal.has-piece::after {
+      width: 100%; height: 100%; border-radius: 0;
+      background: none; border: 4px solid rgba(0,0,0,0.22); box-sizing: border-box;
+    }
+    .sq img { width: 88%; height: 88%; object-fit: contain; display: block; pointer-events: none; user-select: none; }
+
+    .check-badge, .x-badge {
+      position: absolute; top: 4px; right: 4px;
+      width: 20px; height: 20px; border-radius: 50%;
+      font-size: 12px; font-weight: 900;
+      display: flex; align-items: center; justify-content: center;
+      pointer-events: none; z-index: 15;
+      animation: badgePop 0.18s cubic-bezier(.34,1.56,.64,1) forwards;
+    }
+    .check-badge { background: #81b64c; color: #111; }
+    .x-badge     { background: #e74c3c; color: #fff; }
+    @keyframes badgePop { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+    .coord-file { display: flex; width: calc(var(--sq, 60px) * 8); justify-content: space-around; margin-left: 3px; }
+    .coord-file span { font-size: 0.7rem; color: var(--text-muted); width: var(--sq, 60px); text-align: center; }
+
+    /* SIDEBAR */
+    .sidebar { width: 300px; flex-shrink: 0; display: flex; flex-direction: column; gap: 1rem; overflow-y: auto; padding: 1.25rem; border-left: 1px solid var(--border); }
+
+    .status-bar {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+      padding: 0.7rem 1rem; font-size: 0.9rem; text-align: center; color: var(--text-muted);
+      transition: background 0.2s, border-color 0.2s, color 0.2s; flex-shrink: 0;
+    }
+    .status-bar.correct { border-color: var(--green); color: var(--green); background: #1e2e14; }
+    .status-bar.wrong   { border-color: #c0392b; color: #e74c3c; background: #2e1414; }
+
+    .puzzle-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem;
+      display: flex; flex-direction: column; gap: 0.6rem; flex-shrink: 0;
+    }
+    .puzzle-header { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+    .rating-badge {
+      padding: 0.25rem 0.65rem; border-radius: 6px; font-size: 0.8rem; font-weight: 700;
+      background: var(--surface2); border: 1px solid var(--border); color: var(--green);
+      font-family: monospace;
+    }
+    .theme-badge {
+      padding: 0.25rem 0.65rem; border-radius: 6px; font-size: 0.75rem;
+      background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted);
+    }
+    .puzzle-title { font-size: 1.05rem; font-weight: 700; }
+    .to-move { font-size: 0.85rem; color: var(--text-muted); }
+    .to-move strong { color: var(--text); }
+    .attempt-counter { font-size: 0.8rem; color: #e74c3c; min-height: 1.1rem; }
+    .puzzle-desc { font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; }
+
+    .btn-row { display: flex; gap: 0.5rem; }
+    .btn {
+      padding: 0.6rem 1rem; border-radius: 8px; font-size: 0.9rem; font-weight: 600;
+      cursor: pointer; border: none; transition: opacity 0.15s; text-align: center;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn-primary { background: var(--green); color: #111; flex: 1; }
+    .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); flex: 1; }
+    .btn-full { width: 100%; margin-top: 0.25rem; }
+
+    .controls-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1rem;
+      display: flex; flex-direction: column; gap: 0.75rem; flex-shrink: 0;
+    }
+    .ctrl-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+    .progress-text { font-size: 0.82rem; color: var(--text-muted); white-space: nowrap; }
+    .streak-text { font-size: 0.82rem; color: var(--green); font-weight: 700; }
+    .rating-filter label { font-size: 0.82rem; color: var(--text-muted); display: block; margin-bottom: 0.3rem; }
+    .rating-filter input[type=range] { width: 100%; accent-color: var(--green); display: block; margin-bottom: 0.3rem; }
+    /* ── Survival mode ── */
+    .surv-btn { flex:0; padding:0.4rem 0.75rem; font-size:0.82rem; background:linear-gradient(135deg,#b54b4b,#7a2e3e); border-color:#7a2e3e; color:#fff; }
+    .surv-btn:hover { background:linear-gradient(135deg,#c75858,#8c3548); }
+    .survival-panel { background:linear-gradient(135deg,#3a2030,#241a2e); border:1px solid #5a3a4a; border-radius:10px; padding:0.8rem; }
+    .surv-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:0.65rem; }
+    .surv-lives { font-size:1.2rem; letter-spacing:0.18rem; }
+    .surv-exit { flex:0; padding:0.25rem 0.6rem; font-size:0.72rem; }
+    .surv-stats { display:flex; gap:0.5rem; }
+    .surv-stats > div { flex:1; text-align:center; background:rgba(0,0,0,0.28); border-radius:8px; padding:0.45rem 0.2rem; }
+    .surv-num { display:block; font-size:1.3rem; font-weight:700; color:#fff; line-height:1.1; }
+    .surv-cap { display:block; font-size:0.64rem; text-transform:uppercase; letter-spacing:0.05rem; color:var(--text-muted); margin-top:0.15rem; }
+    .surv-over { position:fixed; inset:0; background:rgba(0,0,0,0.72); display:flex; align-items:center; justify-content:center; z-index:2000; }
+    .surv-over-box { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:1.6rem 1.8rem; max-width:480px; text-align:center; box-shadow:0 10px 40px rgba(0,0,0,0.55); }
+    .surv-over-score { font-size:3.4rem; font-weight:800; color:#fff; line-height:1; }
+    .surv-over-sub { font-size:0.8rem; text-transform:uppercase; letter-spacing:0.08rem; color:var(--text-muted); margin-bottom:1.1rem; }
+    .surv-over-msg { color:var(--text-muted); margin:0 0 1.2rem; line-height:1.5; font-size:0.85rem; }
+    .surv-grid { display:flex; flex-wrap:wrap; gap:0.45rem 0.55rem; justify-content:center; margin-bottom:1.1rem; max-height:240px; overflow-y:auto; }
+    .surv-tile { display:flex; flex-direction:column; align-items:center; gap:0.2rem; cursor:pointer; width:38px; }
+    .surv-mark { width:32px; height:32px; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:1.05rem; font-weight:700; transition:transform 0.1s; }
+    .surv-mark.ok { background:#6a9a3a; }
+    .surv-mark.bad { background:#d0432e; }
+    .surv-tile:hover .surv-mark { transform:scale(1.12); }
+    .surv-tile .r { font-size:0.72rem; font-weight:700; }
+    .surv-tile.ok .r { color:#81b64c; }
+    .surv-tile.bad .r { color:#e05555; }
+    .surv-over-box .btn-row { justify-content:center; gap:0.5rem; }
+
+    .puzzle-list-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1rem;
+      flex: 1; min-height: 0; display: flex; flex-direction: column;
+    }
+    .list-header { font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.6rem; flex-shrink: 0; }
+    .puzzle-list { display: flex; flex-direction: column; gap: 0.3rem; overflow-y: auto; flex: 1; }
+    .puzzle-btn {
+      background: none; border: 1px solid transparent; border-radius: 6px; padding: 0.45rem 0.6rem;
+      color: var(--text); font-size: 0.82rem; cursor: pointer; text-align: left;
+      display: flex; justify-content: space-between; align-items: center;
+      transition: background 0.1s; white-space: nowrap; overflow: hidden;
+    }
+    .puzzle-btn:hover { background: var(--surface2); border-color: var(--border); }
+    .puzzle-btn.active { background: var(--surface2); border-color: var(--green); }
+    .puzzle-btn.solved { border-color: var(--green-dark) !important; }
+    .puzzle-btn .pr { font-size: 0.72rem; color: var(--green); font-family: monospace; margin-left: 0.4rem; flex-shrink: 0; }
+    .puzzle-btn .pn { overflow: hidden; text-overflow: ellipsis; }
+    .puzzle-btn.saved-puzzle .pn { color: #e8d28a; }
+    .puzzle-btn .del-saved { color: var(--text-muted); margin-left: 0.4rem; flex-shrink: 0; font-size: 0.85rem; padding: 0 0.2rem; border-radius: 4px; }
+    .puzzle-btn .del-saved:hover { color: #f0a0a0; background: #3a2020; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="index.html"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 128" width="22" height="28" style="display:inline-block;vertical-align:middle;flex-shrink:0" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+  <!-- Crown spikes (gold) -->
+  <path d="M8,46 L14,10 L24,32 L33,4 L42,28 L50,0 L58,28 L67,4 L76,32 L86,10 L92,46 Q71,42 50,42 Q29,42 8,46 Z" fill="#F5C518"/>
+  <!-- Crown band (dark gold shadow) -->
+  <path d="M8,46 Q29,42 50,42 Q71,42 92,46 Q71,51 50,51 Q29,51 8,46 Z" fill="#C8960C"/>
+  <!-- Crown gems -->
+  <circle cx="26" cy="46" r="2.8" fill="rgba(255,255,255,0.88)"/>
+  <circle cx="50" cy="46" r="2.8" fill="rgba(255,255,255,0.88)"/>
+  <circle cx="74" cy="46" r="2.8" fill="rgba(255,255,255,0.88)"/>
+  <!-- Pawn head -->
+  <circle cx="50" cy="63" r="21" fill="#81b64c"/>
+  <!-- Neck -->
+  <path d="M43,83 C42,88 39,92 36,96 L64,96 C61,92 58,88 57,83 Z" fill="#81b64c"/>
+  <!-- Body -->
+  <path d="M36,96 C30,104 28,110 30,115 L70,115 C72,110 70,104 64,96 Z" fill="#81b64c"/>
+  <!-- Base -->
+  <rect x="18" y="111" width="64" height="11" rx="5.5" fill="#81b64c"/>
+</svg> <span>Chess</span>Practice</a>
+  <div class="nav-links">
+    <a href="index.html">Home</a>
+    <a href="practice.html">Practice</a>
+    <a href="openings.html">Openings</a>
+    <a href="puzzles.html" class="active">Puzzles</a>
+    <a href="review.html">Review</a>
+  </div>
+</nav>
+
+<div class="layout">
+  <div class="board-wrap">
+    <div class="board-area">
+      <div class="coord-rank" id="rankLabels"></div>
+      <div>
+        <div class="board-container">
+          <div id="board"></div>
+          <svg id="arrowLayer" style="position:absolute;top:3px;left:3px;pointer-events:none;z-index:20;overflow:visible;">
+            <defs>
+              <marker id="ah" markerWidth="4" markerHeight="4" refX="2.5" refY="2" orient="auto">
+                <path d="M0,0 L4,2 L0,4 Z" fill="rgba(235,97,80,0.9)"/>
+              </marker>
+              <marker id="ah-pre" markerWidth="4" markerHeight="4" refX="2.5" refY="2" orient="auto">
+                <path d="M0,0 L4,2 L0,4 Z" fill="rgba(235,97,80,0.6)"/>
+              </marker>
+            </defs>
+          </svg>
+        </div>
+        <div class="coord-file" id="fileLabels"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <div class="status-bar" id="statusBar">Find the best move.</div>
+
+    <div class="survival-panel" id="survivalPanel" style="display:none">
+      <div class="surv-top">
+        <span class="surv-lives" id="survLives">❤️ ❤️ ❤️</span>
+        <button class="btn btn-secondary surv-exit" onclick="exitSurvival()">Exit</button>
+      </div>
+      <div class="surv-stats">
+        <div><span class="surv-num" id="survScore">0</span><span class="surv-cap">Solved</span></div>
+        <div><span class="surv-num" id="survRating">500</span><span class="surv-cap">Difficulty</span></div>
+        <div><span class="surv-num" id="survBest">0</span><span class="surv-cap">Best</span></div>
+      </div>
+    </div>
+
+    <div class="puzzle-card">
+      <div class="puzzle-header">
+        <div class="rating-badge" id="ratingBadge">●●●</div>
+      </div>
+      <div class="to-move" id="toMove"></div>
+      <div class="attempt-counter" id="attemptCounter"></div>
+      <div class="btn-row" id="solveBtns">
+        <button class="btn btn-secondary" onclick="showHint()">Hint</button>
+        <button class="btn btn-secondary" onclick="revealSolution()">Give Up</button>
+      </div>
+      <button class="btn btn-primary btn-full" id="nextBtn" onclick="nextPuzzle()">Next Puzzle →</button>
+      <button class="btn btn-secondary btn-full" id="reviewBackBtn" style="display:none" onclick="showSurvivalResults()">← Back to Results</button>
+    </div>
+
+    <div class="controls-card" id="controlsCard">
+      <div class="ctrl-row" style="margin-bottom:0.6rem;justify-content:center;gap:0.6rem">
+        <span class="progress-text" id="progressText">0 / 0</span>
+        <span class="streak-text" id="streakText"></span>
+      </div>
+      <div class="ctrl-row">
+        <button class="btn btn-secondary" style="flex:0;padding:0.4rem 0.75rem;font-size:0.82rem" onclick="shuffleAndRestart()">🔀 Shuffle</button>
+        <button class="btn surv-btn" onclick="startSurvival()">💀 Survival</button>
+      </div>
+      <div class="rating-filter">
+        <label>Rating range: <strong id="filterLabel">All</strong></label>
+        <input type="range" id="ratingFilterMin" min="400" max="3200" step="100" value="400" oninput="onFilterChange()">
+        <input type="range" id="ratingFilter" min="400" max="3200" step="100" value="3200" oninput="onFilterChange()">
+      </div>
+    </div>
+
+    <div class="puzzle-list-card" id="puzzleListCard" style="display:none">
+      <div class="list-header" id="listHeader">All Puzzles</div>
+      <div class="puzzle-list" id="puzzleList"></div>
+    </div>
+  </div>
+</div>
+
+<div class="surv-over" id="survOver" style="display:none">
+  <div class="surv-over-box">
+    <div class="surv-over-score" id="survOverScore">0</div>
+    <div class="surv-over-sub">puzzles solved</div>
+    <div class="surv-grid" id="survGrid"></div>
+    <p class="surv-over-msg" id="survOverMsg"></p>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="startSurvival()">Play Again</button>
+      <button class="btn btn-secondary" onclick="exitSurvival()">Exit</button>
+    </div>
+  </div>
+</div>
+
+<script src="puzzles_data.js"></script>
+<script>
+// ─── PIECE IMAGES ─────────────────────────────────────────────────────────────
+const PIECE_IMGS = {
+  K:'https://upload.wikimedia.org/wikipedia/commons/4/42/Chess_klt45.svg',
+  Q:'https://upload.wikimedia.org/wikipedia/commons/1/15/Chess_qlt45.svg',
+  R:'https://upload.wikimedia.org/wikipedia/commons/7/72/Chess_rlt45.svg',
+  B:'https://upload.wikimedia.org/wikipedia/commons/b/b1/Chess_blt45.svg',
+  N:'https://upload.wikimedia.org/wikipedia/commons/7/70/Chess_nlt45.svg',
+  P:'https://upload.wikimedia.org/wikipedia/commons/4/45/Chess_plt45.svg',
+  k:'https://upload.wikimedia.org/wikipedia/commons/f/f0/Chess_kdt45.svg',
+  q:'https://upload.wikimedia.org/wikipedia/commons/4/47/Chess_qdt45.svg',
+  r:'https://upload.wikimedia.org/wikipedia/commons/f/ff/Chess_rdt45.svg',
+  b:'https://upload.wikimedia.org/wikipedia/commons/9/98/Chess_bdt45.svg',
+  n:'https://upload.wikimedia.org/wikipedia/commons/e/ef/Chess_ndt45.svg',
+  p:'https://upload.wikimedia.org/wikipedia/commons/c/c7/Chess_pdt45.svg',
+};
+
+// ─── SOUND ────────────────────────────────────────────────────────────────────
+let _ac=null;
+function ac(){if(!_ac)_ac=new(window.AudioContext||window.webkitAudioContext)();return _ac;}
+function tone(f,d,v=0.3,t='sine',dl=0){try{const o=ac().createOscillator(),g=ac().createGain();o.type=t;o.frequency.setValueAtTime(f,ac().currentTime+dl);g.gain.setValueAtTime(v,ac().currentTime+dl);g.gain.exponentialRampToValueAtTime(0.001,ac().currentTime+dl+d);o.connect(g);g.connect(ac().destination);o.start(ac().currentTime+dl);o.stop(ac().currentTime+dl+d);}catch(e){}}
+function noise(d,v=0.4,cf=400,dl=0){try{const b=ac().createBuffer(1,Math.floor(ac().sampleRate*d),ac().sampleRate),dd=b.getChannelData(0);for(let i=0;i<dd.length;i++)dd[i]=Math.random()*2-1;const s=ac().createBufferSource();s.buffer=b;const f=ac().createBiquadFilter();f.type='bandpass';f.frequency.value=cf;f.Q.value=0.8;const g=ac().createGain();g.gain.setValueAtTime(v,ac().currentTime+dl);g.gain.exponentialRampToValueAtTime(0.001,ac().currentTime+dl+d);s.connect(f);f.connect(g);g.connect(ac().destination);s.start(ac().currentTime+dl);}catch(e){}}
+function sndMove(){noise(0.08,0.5,350);tone(160,0.09,0.15);}
+function sndCorrect(){noise(0.08,0.5,350);tone(160,0.09,0.15);tone(520,0.18,0.28,'sine',0.12);tone(660,0.18,0.24,'sine',0.28);tone(780,0.25,0.2,'sine',0.44);}
+function sndWrong(){tone(220,0.18,0.3,'sawtooth');tone(180,0.22,0.25,'sawtooth',0.1);}
+
+// ─── PUZZLE GENERATOR ─────────────────────────────────────────────────────────
+const ALL_PUZZLES = [];
+
+function bp(specs) {
+  const b = Array(64).fill('.');
+  for (const [r,c,p] of specs) b[r*8+c] = p;
+  return b.join('');
+}
+
+function addP(board, from, to, rating, theme, title, toMove, desc) {
+  ALL_PUZZLES.push({
+    id: ALL_PUZZLES.length,
+    board, solution:{from,to},
+    rating: Math.round(rating),
+    theme, title,
+    toMove: toMove||'White',
+    desc: desc||'Find the winning move!'
+  });
+}
+
+// Multi-move puzzles: `line` = array of plies [[fromRC],[toRC]].
+// Even plies (0,2,4…) are the USER's moves; odd plies are the computer's forced replies.
+function addPLine(board, line, rating, theme, title, toMove, desc) {
+  ALL_PUZZLES.push({
+    id: ALL_PUZZLES.length,
+    board, solution:{ line, from: line[0][0], to: line[0][1] },
+    rating: Math.round(rating),
+    theme, title,
+    toMove: toMove||'White',
+    desc: desc||'Find the forced mate!'
+  });
+}
+
+// ──────────────────────────────────────────────────
+// BACK RANK MATES  (rating 300–500)
+// ──────────────────────────────────────────────────
+function genBackRank() {
+  // King g8 (0,6), pawns f7/g7/h7, rook on rank1 col 0-5
+  for (let rc=0;rc<=5;rc++) {
+    addP(bp([[0,6,'k'],[1,5,'p'],[1,6,'p'],[1,7,'p'],[7,rc,'R'],[7,Math.max(0,rc===6?5:6),'K']]),
+      [7,rc],[0,rc], 310+rc*8, 'Back Rank','Back Rank Mate','White',
+      'The black king is trapped behind its own pawns. Deliver checkmate on the back rank!');
+  }
+  // King h8 (0,7) with pawn g7/h7, rook covers rank1 col 0-4
+  for (let rc=0;rc<=4;rc++) {
+    addP(bp([[0,7,'k'],[1,6,'p'],[1,7,'p'],[7,rc,'R'],[7,6,'K']]),
+      [7,rc],[0,rc], 320+rc*9, 'Back Rank','Back Rank Mate','White',
+      'Force checkmate along the back rank!');
+  }
+  // King f8 (0,5), pawns e7/f7/g7, rook on rank1 col 0-4
+  for (let rc=0;rc<=4;rc++) {
+    addP(bp([[0,5,'k'],[1,4,'p'],[1,5,'p'],[1,6,'p'],[7,rc,'R'],[7,7,'K']]),
+      [7,rc],[0,rc], 315+rc*7, 'Back Rank','Back Rank Mate','White',
+      'The king on f8 cannot escape. Use your rook!');
+  }
+  // King e8 (0,4), pawns d7/e7/f7
+  for (let rc=0;rc<=3;rc++) {
+    addP(bp([[0,4,'k'],[1,3,'p'],[1,4,'p'],[1,5,'p'],[7,rc,'R'],[7,7,'K']]),
+      [7,rc],[0,rc], 325+rc*10, 'Back Rank','Back Rank Mate','White',
+      'Slide your rook to the back rank for checkmate!');
+  }
+  // Ladder mate: rook a7 covers rank7, delivering rook on rank1
+  for (let rc=1;rc<=5;rc++) {
+    addP(bp([[0,7,'k'],[1,0,'R'],[7,rc,'R'],[7,6,'K']]),
+      [7,rc],[0,rc], 355+rc*12, 'Ladder Mate','The Ladder Mate','White',
+      'Two rooks work as a ladder! The a7 rook seals the 7th rank while yours mates on the 8th.');
+  }
+  // Queen delivers back rank mate instead of rook
+  const qStarts=[[5,0],[5,3],[6,0],[6,1],[6,2],[4,0],[4,1],[4,2]];
+  for (const [qr,qc] of qStarts) {
+    // Queen goes to rank 8 (row 0) same column
+    addP(bp([[0,6,'k'],[1,5,'p'],[1,6,'p'],[1,7,'p'],[qr,qc,'Q'],[7,6,'K']]),
+      [qr,qc],[0,qc], 360+qr*5+qc*3, 'Back Rank','Queen Mates on Back Rank','White',
+      'Your queen controls the file. Deliver checkmate on the 8th rank!');
+  }
+  // Black to move, white king trapped
+  for (let rc=0;rc<=4;rc++) {
+    addP(bp([[7,rc,'r'],[7,6,'K'],[6,5,'p'],[6,6,'p'],[6,7,'p'],[0,6,'k']]),
+      [7,rc],[0,rc], 330+rc*9, 'Back Rank','Back Rank Mate','Black',
+      'White\'s king is trapped. Deliver back rank checkmate!');
+  }
+}
+
+// ──────────────────────────────────────────────────
+// KNIGHT FORKS  (rating 450–750)
+// ──────────────────────────────────────────────────
+function genKnightForks() {
+  // Format: [forkSquare, target1, target2, knightStarts, ratingBase, targetPieces]
+  const patterns = [
+    // Fork square d6 (2,3): attacks e8(0,4) and c8(0,2)
+    { fs:[2,3], t1:[0,4,'k'], t2:[0,2,'q'], starts:[[3,1],[1,1],[4,2],[3,5],[1,5],[4,4]], rb:520 },
+    { fs:[2,3], t1:[0,4,'k'], t2:[0,2,'r'], starts:[[3,1],[1,1],[4,2],[3,5],[1,5],[4,4]], rb:490 },
+    // Fork square b6 (2,1): attacks a8(0,0) and c8(0,2)
+    { fs:[2,1], t1:[0,0,'k'], t2:[0,2,'q'], starts:[[4,2],[3,3],[1,3],[4,0],[3,0]], rb:540 },
+    { fs:[2,1], t1:[0,0,'k'], t2:[0,2,'r'], starts:[[4,2],[3,3],[1,3],[4,0]], rb:510 },
+    // Fork square f6 (2,5): attacks e8(0,4) and g8(0,6)
+    { fs:[2,5], t1:[0,4,'k'], t2:[0,6,'q'], starts:[[3,3],[1,3],[4,4],[3,7],[1,7],[4,6]], rb:530 },
+    { fs:[2,5], t1:[0,4,'k'], t2:[0,6,'r'], starts:[[3,3],[1,3],[4,4],[3,7],[1,7]], rb:495 },
+    // Fork square e6 (2,4): attacks d8(0,3) and f8(0,5)
+    { fs:[2,4], t1:[0,3,'k'], t2:[0,5,'q'], starts:[[3,2],[1,2],[4,3],[3,6],[1,6],[4,5]], rb:545 },
+    { fs:[2,4], t1:[0,3,'k'], t2:[0,5,'r'], starts:[[3,2],[1,2],[4,3],[3,6],[1,6]], rb:505 },
+    // Fork square g6 (2,6): attacks f8(0,5) and h8(0,7)
+    { fs:[2,6], t1:[0,5,'k'], t2:[0,7,'q'], starts:[[3,4],[1,4],[4,5],[4,7],[3,7] ], rb:535 },
+    { fs:[2,6], t1:[0,5,'k'], t2:[0,7,'r'], starts:[[3,4],[1,4],[4,5],[4,7]], rb:500 },
+    // Fork square c7 (1,2): attacks a8(0,0) and e8(0,4)
+    { fs:[1,2], t1:[0,0,'k'], t2:[0,4,'r'], starts:[[2,0],[3,1],[3,3],[2,4]], rb:560 },
+    // Fork square f7 (1,5): attacks d8(0,3) and h8(0,7)
+    { fs:[1,5], t1:[0,3,'k'], t2:[0,7,'r'], starts:[[2,3],[3,4],[3,6],[2,7]], rb:555 },
+    // Fork square d7 (1,3): attacks b8(0,1) and f8(0,5)
+    { fs:[1,3], t1:[0,1,'k'], t2:[0,5,'r'], starts:[[2,1],[3,2],[3,4],[2,5]], rb:550 },
+  ];
+
+  for (const pat of patterns) {
+    const [fr2,fc2]=pat.fs, [r1,c1,p1]=pat.t1, [r2,c2,p2]=pat.t2;
+    pat.starts.forEach(([sr,sc],i) => {
+      // white king placed safely (row7, col away from pieces)
+      let kc = 4;
+      if (kc===sc && sr===7) kc=2;
+      addP(bp([[r1,c1,p1],[r2,c2,p2],[sr,sc,'N'],[7,kc,'K']]),
+        [sr,sc],[fr2,fc2], pat.rb+i*12, 'Fork', 'Knight Fork', 'White',
+        `Your knight can jump to a square that attacks two enemy pieces at once — a fork!`);
+    });
+  }
+
+  // Black knight fork variations
+  const bpats = [
+    { fs:[5,3], t1:[7,4,'K'], t2:[7,2,'R'], starts:[[4,1],[6,1],[3,2],[3,4],[4,5],[6,5]], rb:500 },
+    { fs:[5,4], t1:[7,5,'K'], t2:[7,3,'R'], starts:[[4,2],[6,2],[3,3],[3,5],[4,6],[6,6]], rb:510 },
+    { fs:[5,2], t1:[7,3,'K'], t2:[7,1,'R'], starts:[[4,0],[6,0],[3,1],[3,3],[4,4],[6,4]], rb:495 },
+  ];
+  for (const pat of bpats) {
+    const [fr2,fc2]=pat.fs, [r1,c1,p1]=pat.t1, [r2,c2,p2]=pat.t2;
+    pat.starts.forEach(([sr,sc],i) => {
+      addP(bp([[r1,c1,p1],[r2,c2,p2],[sr,sc,'n'],[0,6,'k']]),
+        [sr,sc],[fr2,fc2], pat.rb+i*10, 'Fork', 'Knight Fork', 'Black',
+        'Your knight can fork two white pieces!');
+    });
+  }
+}
+
+// ──────────────────────────────────────────────────
+// HANGING PIECES  (rating 300–480)
+// ──────────────────────────────────────────────────
+function genHanging() {
+  // White captures hanging black queen
+  const qPositions=[[3,3],[3,4],[4,3],[4,4],[2,4],[2,3],[3,5],[4,5],[3,2],[4,2],[5,4],[5,3]];
+  const captors=[
+    {p:'R',starts:[[7,3],[7,4],[7,5],[6,3],[5,3]]},
+    {p:'B',starts:[[6,1],[6,5],[5,2],[5,6],[4,2]]},
+    {p:'N',starts:[[5,5],[5,2],[2,5],[2,2],[1,4]]},
+    {p:'P',starts:[[4,2],[4,4],[3,2],[3,4]]},
+  ];
+  let idx=0;
+  for (const [qr,qc] of qPositions) {
+    for (const cap of captors) {
+      for (const [sr,sc] of cap.starts.slice(0,2)) {
+        // check if captor can reach qr,qc in one move
+        let ok=false;
+        if(cap.p==='R') ok=(sr===qr||sc===qc);
+        else if(cap.p==='B') ok=(Math.abs(sr-qr)===Math.abs(sc-qc));
+        else if(cap.p==='N'){const dr=Math.abs(sr-qr),dc=Math.abs(sc-qc);ok=(dr===1&&dc===2)||(dr===2&&dc===1);}
+        else if(cap.p==='P') ok=(sr===qr+1&&Math.abs(sc-qc)===1);
+        if(!ok) continue;
+        // Don't place captor on the queen square
+        if(sr===qr&&sc===qc) continue;
+        // Place white king safely
+        const kp=idx%2===0?[7,0]:[7,7];
+        addP(bp([[qr,qc,'q'],[0,4,'k'],[sr,sc,cap.p],[kp[0],kp[1],'K']]),
+          [sr,sc],[qr,qc], 300+Math.floor(Math.random()*100)+idx%3*20,
+          'Hanging Piece','Capture the Hanging Queen','White',
+          'The black queen has no defenders! Capture it for free material.');
+        idx++;
+        if(ALL_PUZZLES.length>200) break;
+      }
+      if(ALL_PUZZLES.length>200) break;
+    }
+  }
+  // Hanging rook captures
+  const rPos=[[1,0],[1,7],[0,0],[0,7],[2,0],[2,7]];
+  for(const [rr,rc] of rPos) {
+    // white rook captures it
+    const wr = rr===0?7:7;
+    addP(bp([[rr,rc,'r'],[0,4,'k'],[wr,rc,'R'],[7,4,'K']]),
+      [wr,rc],[rr,rc], 310+rr*15, 'Hanging Piece','Win the Rook','White',
+      'The black rook is undefended. Take it!');
+    // white queen captures it
+    addP(bp([[rr,rc,'r'],[0,4,'k'],[7,3,'Q'],[7,6,'K']]),
+      [7,3],[rr,rc], 295+rr*12, 'Hanging Piece','Win the Rook','White',
+      'Spot the free piece!');
+  }
+}
+
+// ──────────────────────────────────────────────────
+// SKEWERS  (rating 550–800)
+// ──────────────────────────────────────────────────
+function genSkewers() {
+  // Bishop skewer: bishop attacks king on diagonal, valuable piece behind king
+  // Diagonal configs [bishop, king, piece_behind, piece_type, rating]
+  const skewers = [
+    // a1-h8 diagonal, bishop on f3, king on e4, rook on d5
+    [[5,5,'B'],[4,4,'k'],[3,3,'r'],[0,0,'K'], 5,4, 3,3, 610],
+    // bishop on g2, king on e4, queen on c6
+    [[6,6,'B'],[4,4,'k'],[2,2,'q'],[0,7,'K'], 6,6, 2,2, 680],
+    // bishop on h1, king on f3, rook on d5
+    [[7,7,'B'],[5,5,'k'],[3,3,'r'],[0,0,'K'], 7,7, 3,3, 590],
+    // bishop on c6, king on e4, rook on g2
+    [[2,2,'B'],[4,4,'k'],[6,6,'r'],[0,0,'K'], 2,2, 6,6, 620],
+    // anti-diagonal
+    [[5,2,'B'],[4,3,'k'],[3,4,'r'],[7,7,'K'], 5,2, 3,4, 595],
+    [[6,1,'B'],[4,3,'k'],[2,5,'q'],[7,7,'K'], 6,1, 2,5, 670],
+    [[7,0,'B'],[5,2,'k'],[3,4,'r'],[0,7,'K'], 7,0, 3,4, 585],
+    [[2,5,'B'],[4,3,'k'],[6,1,'r'],[0,0,'K'], 2,5, 6,1, 600],
+    // Rook skewer on file: rook checks king, rook behind
+    [[7,4,'R'],[4,4,'k'],[2,4,'r'],[0,0,'K'], 7,4, 2,4, 640],
+    [[7,3,'R'],[3,3,'k'],[1,3,'r'],[0,7,'K'], 7,3, 1,3, 625],
+    [[7,5,'R'],[5,5,'k'],[2,5,'r'],[0,0,'K'], 7,5, 2,5, 630],
+    [[0,4,'R'],[4,4,'k'],[6,4,'r'],[7,0,'K'], 0,4, 6,4, 645],
+    // Queen skewer
+    [[7,4,'Q'],[4,4,'k'],[2,4,'r'],[0,0,'K'], 7,4, 2,4, 720],
+    [[6,6,'Q'],[4,4,'k'],[2,2,'r'],[0,0,'K'], 6,6, 2,2, 730],
+  ];
+  for (const [bspec,kspec,rspec,wkspec,br,bc,tr,tc,rat] of skewers) {
+    addP(bp([bspec,kspec,rspec,wkspec]),
+      [br,bc],[kspec[0],kspec[1]], rat, 'Skewer','The Skewer Attack','White',
+      'A skewer forces the king to move, then you capture the piece hiding behind it!');
+  }
+
+  // More skewer variations with different offsets
+  for (let i=0;i<10;i++) {
+    const offset=i%3;
+    addP(bp([[5+offset,3,'B'],[4+offset,4,'k'],[2+offset,6,'r'],[7,0,'K']]),
+      [5+offset,3],[4+offset,4], 580+i*20, 'Skewer','Bishop Skewer','White',
+      'Attack the king and win the piece behind it!');
+  }
+}
+
+// ──────────────────────────────────────────────────
+// PINS  (rating 600–900)
+// ──────────────────────────────────────────────────
+function genPins() {
+  // White bishop pins black knight/rook to black king, white rook captures
+  const pins = [
+    // Bishop on b2, knight on d4, king on f6: pin on diagonal. Rook takes d4.
+    [[[6,1,'B'],[4,3,'n'],[2,5,'k'],[7,4,'R'],[7,6,'K']], [7,4],[4,3], 650],
+    // Bishop on g2, rook on e4, king on c6
+    [[[6,6,'B'],[4,4,'r'],[2,2,'k'],[7,3,'R'],[7,0,'K']], [7,3],[4,4], 680],
+    // Bishop on a1, knight on c3, king on e5
+    [[[7,0,'B'],[5,2,'n'],[3,4,'k'],[7,7,'R'],[7,6,'K']], [7,7],[5,2], 660],
+    // Bishop on h1, rook on f3, king on d5
+    [[[7,7,'B'],[5,5,'r'],[3,3,'k'],[7,0,'R'],[7,1,'K']], [7,0],[5,5], 690],
+    // Pin on file: rook pins rook to king
+    [[[3,4,'R'],[5,4,'r'],[7,4,'k'],[0,4,'R'],[0,0,'K']], [0,4],[5,4], 620],
+    [[[3,3,'R'],[5,3,'r'],[7,3,'k'],[0,3,'R'],[0,7,'K']], [0,3],[5,3], 625],
+    // Pin: queen on e1, black knight on e4, black king on e7. Qxe4.
+    [[[7,4,'Q'],[4,4,'n'],[1,4,'k'],[7,0,'K']],           [7,4],[4,4], 700],
+    [[[7,3,'Q'],[4,3,'n'],[1,3,'k'],[7,7,'K']],           [7,3],[4,3], 705],
+    // Bishop pin: bishop d3, black queen d5, black king d7
+    [[[5,3,'B'],[3,3,'q'],[1,3,'k'],[7,0,'K']],           [5,3],[3,3], 750],
+    [[[5,4,'B'],[3,4,'q'],[1,4,'k'],[7,7,'K']],           [5,4],[3,4], 755],
+    // White rook pins black rook to king on same rank
+    [[[3,7,'R'],[3,4,'r'],[3,0,'k'],[7,4,'K']],           [3,7],[3,4], 640],
+    [[[4,7,'R'],[4,3,'r'],[4,0,'k'],[7,7,'K']],           [4,7],[4,3], 645],
+  ];
+  for (const [specs, fr, to, rat] of pins) {
+    addP(bp(specs), fr, to, rat, 'Pin', 'Win a Pinned Piece', 'White',
+      'The enemy piece is pinned to its king and cannot move. Capture it!');
+  }
+}
+
+// ──────────────────────────────────────────────────
+// DISCOVERED ATTACKS  (rating 700–1100)
+// ──────────────────────────────────────────────────
+function genDiscoveries() {
+  const discs = [
+    // Move knight, reveal rook attack on queen
+    [[[4,4,'N'],[1,4,'q'],[7,4,'R'],[7,6,'K'],[0,0,'k']], [4,4],[2,5], 750],
+    [[[4,3,'N'],[1,3,'q'],[7,3,'R'],[7,7,'K'],[0,0,'k']], [4,3],[2,4], 755],
+    [[[4,5,'N'],[1,5,'q'],[7,5,'R'],[7,0,'K'],[0,7,'k']], [4,5],[2,6], 760],
+    // Move bishop, reveal rook on queen
+    [[[4,4,'B'],[4,0,'q'],[4,7,'R'],[7,6,'K'],[0,4,'k']], [4,4],[2,6], 780],
+    [[[4,3,'B'],[4,7,'q'],[4,0,'R'],[7,4,'K'],[0,4,'k']], [4,3],[2,1], 785],
+    // Move pawn, reveal bishop attack on queen
+    [[[5,4,'P'],[3,4,'B'],[1,6,'q'],[7,7,'K'],[0,0,'k']], [5,4],[4,4], 720],
+    // Discovered check: move piece to reveal check AND win material
+    [[[4,3,'N'],[1,4,'q'],[7,3,'R'],[7,0,'K'],[0,6,'k']], [4,3],[3,5], 800],
+    [[[4,4,'N'],[1,3,'q'],[7,4,'R'],[7,7,'K'],[0,4,'k']], [4,4],[3,2], 810],
+    // Double check: move piece gives check, and revealed piece also gives check
+    [[[5,4,'N'],[1,4,'k'],[7,4,'R'],[7,0,'K']], [5,4],[4,6], 850],
+    [[[5,5,'N'],[1,5,'k'],[7,5,'R'],[7,0,'K']], [5,5],[4,7], 860],
+  ];
+  for (const [specs,fr,to,rat] of discs) {
+    addP(bp(specs), fr, to, rat, 'Discovery', 'Discovered Attack', 'White',
+      'Moving one piece uncovers a devastating attack from another!');
+  }
+}
+
+// ──────────────────────────────────────────────────
+// QUEEN CHECKMATES  (rating 700–1100)
+// ──────────────────────────────────────────────────
+function genQueenMates() {
+  const mates = [
+    // Queen + king → corner mate
+    // Q on h7, K on f6 → Qg8# (king a8 cornered)
+    [[[1,7,'Q'],[2,5,'K'],[0,0,'k']], [1,7],[0,6], 720],
+    // Q on a7, K on c6 → Qa8#
+    [[[1,0,'Q'],[2,2,'K'],[0,7,'k']], [1,0],[0,0], 715],
+    // King h8 corner: Q on g6, K on f6 → Qh7#
+    [[[2,6,'Q'],[2,5,'K'],[0,7,'k']], [2,6],[1,7], 730],
+    // King a8 corner: Q on b6, K on c6 → Qa7#
+    [[[2,1,'Q'],[2,2,'K'],[0,0,'k']], [2,1],[1,0], 725],
+    // Queen ladder mate: Q on g7, blocks rank 7. Q on g6→g8#
+    [[[1,6,'Q'],[3,6,'K'],[0,7,'k'],[1,7,'p']], [1,6],[0,6], 680],
+    // Qf7#
+    [[[5,5,'Q'],[5,4,'K'],[0,5,'k'],[1,4,'p'],[1,5,'p'],[1,6,'p']], [5,5],[1,5], 750],
+    // Anastasia's mate: rook h-file, knight on e7 blocks king escape
+    [[[1,4,'N'],[0,6,'R'],[0,7,'k'],[1,6,'p'],[1,7,'p'],[7,0,'K']], [0,6],[0,7], 820],
+    // Epaulette mate: queen d6, both rooks beside king
+    [[[2,3,'Q'],[0,4,'k'],[0,3,'r'],[0,5,'r'],[7,0,'K']], [2,3],[0,3], 860],
+    // Smothered patterns
+    [[[4,2,'N'],[2,1,'K'],[0,0,'k'],[1,0,'r'],[1,1,'p'],[0,1,'p'],[7,4,'K']], [4,2],[2,1], 1100],
+    // Two rooks, deliver back rank
+    [[[1,0,'R'],[7,1,'R'],[0,7,'k'],[7,6,'K']], [7,1],[0,1], 360],
+  ];
+  for(const [specs,fr,to,rat] of mates) {
+    addP(bp(specs), fr, to, rat, 'Checkmate', 'Deliver Checkmate', 'White',
+      'Find the move that delivers checkmate!');
+  }
+}
+
+// ──────────────────────────────────────────────────
+// ADVANCED / HAND-CRAFTED  (rating 1000–2000)
+// ──────────────────────────────────────────────────
+function genAdvanced() {
+  const adv = [
+    // Sacrifice + back rank: Rxd7! clearing the d-file then Rd8#
+    [[[0,6,'k'],[1,5,'p'],[1,6,'p'],[1,7,'p'],[1,3,'n'],[7,3,'R'],[7,0,'K']], [7,3],[1,3], 1050],
+    // Queen sac + checkmate
+    [[[0,6,'k'],[1,5,'p'],[1,6,'p'],[0,7,'r'],[5,7,'Q'],[7,4,'K']], [5,7],[0,7], 1150],
+    // Zwischenzug (in-between move)
+    [[[0,4,'k'],[1,4,'p'],[1,3,'p'],[1,5,'p'],[4,4,'Q'],[7,0,'K'],[3,3,'n']], [3,3],[4,5], 1200],
+    // Zugzwang position
+    [[[0,7,'k'],[2,7,'K'],[2,5,'Q']], [2,5],[1,6], 1300],
+    // Rook + bishop mate
+    [[[0,7,'k'],[1,5,'B'],[7,7,'R'],[7,0,'K']], [7,7],[0,7], 950],
+    // Windmill tactic
+    [[[0,6,'k'],[1,5,'p'],[1,6,'p'],[2,7,'R'],[3,4,'N'],[6,6,'q'],[7,0,'K']], [2,7],[0,7], 1400],
+    // Arabian mate: rook h8, knight f7
+    [[[0,7,'k'],[1,5,'N'],[7,7,'R'],[7,0,'K']], [7,7],[0,7], 880],
+    // Boden's mate: two bishops
+    [[[0,4,'k'],[1,3,'p'],[1,5,'p'],[3,1,'B'],[5,7,'B'],[7,0,'K']], [5,7],[2,4], 1100],
+    // Deflection: rook deflects defender, then mate
+    [[[0,6,'k'],[1,5,'p'],[1,6,'p'],[1,7,'p'],[0,7,'r'],[7,7,'R'],[5,6,'Q'],[7,0,'K']], [7,7],[0,7], 1250],
+    // Interference tactic
+    [[[0,4,'k'],[2,4,'Q'],[4,4,'r'],[4,0,'B'],[7,7,'K']], [4,0],[4,4], 1350],
+    // Removing the defender
+    [[[0,6,'k'],[1,5,'p'],[1,6,'p'],[1,7,'p'],[0,5,'r'],[7,5,'R'],[3,0,'Q'],[7,0,'K']], [7,5],[0,5], 1100],
+    // X-ray attack
+    [[[0,4,'k'],[4,4,'q'],[7,4,'R'],[7,0,'K'],[4,0,'r']], [7,4],[4,4], 1180],
+    // Desperado piece
+    [[[0,6,'k'],[1,5,'p'],[3,3,'N'],[3,5,'n'],[7,7,'K'],[1,7,'p']], [3,3],[5,4], 1220],
+    // Greek gift sacrifice: Bxh7+
+    [[[0,5,'k'],[1,5,'p'],[1,6,'p'],[1,7,'p'],[2,7,'B'],[7,0,'K']], [2,7],[1,6], 1400],
+    // Mating net
+    [[[0,7,'k'],[1,7,'p'],[1,6,'p'],[3,5,'Q'],[2,5,'R'],[7,0,'K']], [3,5],[1,7], 1500],
+    // Rook and queen battery
+    [[[0,4,'k'],[1,3,'p'],[1,4,'p'],[1,5,'p'],[6,4,'Q'],[7,4,'R'],[7,0,'K']], [6,4],[0,4], 900],
+    // Double attack with queen
+    [[[0,7,'k'],[2,5,'q'],[5,5,'Q'],[7,0,'K'],[3,3,'r']], [5,5],[3,3], 820],
+    // Zwischenzug 2
+    [[[0,6,'k'],[1,5,'p'],[4,4,'N'],[7,0,'K'],[1,6,'b']], [4,4],[2,5], 1150],
+    // Rook lift + mate threat
+    [[[0,6,'k'],[1,6,'p'],[1,7,'p'],[6,0,'R'],[6,6,'K']], [6,0],[0,0], 870],
+    // Perpetual check setup (win material)
+    [[[0,7,'k'],[2,6,'Q'],[3,5,'N'],[7,0,'K'],[1,7,'p'],[1,6,'p']], [2,6],[0,6], 980],
+    // Back rank + queen
+    [[[0,6,'k'],[1,5,'p'],[1,6,'p'],[1,7,'p'],[5,0,'Q'],[7,6,'K']], [5,0],[0,0], 760],
+    // Knight outpost fork
+    [[[0,0,'k'],[0,6,'r'],[3,4,'N'],[7,0,'K']], [3,4],[1,5], 640],
+    // Pin and win advanced
+    [[[0,4,'k'],[2,4,'n'],[7,4,'Q'],[7,0,'K'],[4,0,'r']], [7,4],[2,4], 820],
+    // Clearance sacrifice
+    [[[0,6,'k'],[1,5,'p'],[1,6,'p'],[4,6,'N'],[7,6,'R'],[7,0,'K']], [4,6],[2,5], 1080],
+    // Battery on open file
+    [[[0,3,'k'],[1,3,'p'],[4,3,'R'],[6,3,'Q'],[7,6,'K']], [6,3],[1,3], 1020],
+  ];
+  for(const [specs,fr,to,rat] of adv) {
+    const themes=['Advanced Tactics','Combination','Sacrifice','Mating Net','Deflection'];
+    addP(bp(specs), fr, to, rat, themes[rat%themes.length], 'Find the Best Move', 'White',
+      'This position requires precise calculation. Find the strongest move!');
+  }
+}
+
+// ──────────────────────────────────────────────────
+// INTERMEDIATE TACTICS (rating 800–1400)
+// ──────────────────────────────────────────────────
+function genIntermediate() {
+  // Fork variations with queen
+  const qForks = [
+    [[[0,0,'k'],[0,7,'r'],[5,3,'Q'],[7,6,'K']], [5,3],[1,7], 700],
+    [[[0,7,'k'],[0,0,'r'],[5,4,'Q'],[7,0,'K']], [5,4],[1,0], 710],
+    [[[0,4,'k'],[3,7,'r'],[6,4,'Q'],[7,0,'K']], [6,4],[3,7], 720],
+    [[[0,4,'k'],[0,0,'r'],[4,2,'Q'],[7,7,'K']], [4,2],[0,0], 680],
+    [[[0,4,'k'],[7,0,'r'],[3,3,'Q'],[7,7,'K']], [3,3],[0,0], 690],
+    // Pawn fork
+    [[[0,4,'k'],[2,2,'n'],[2,4,'b'],[3,3,'P'],[7,0,'K']], [3,3],[2,4], 580],
+    [[[0,4,'k'],[3,1,'n'],[3,3,'b'],[4,2,'P'],[7,7,'K']], [4,2],[3,3], 590],
+    // Bishop fork
+    [[[0,4,'k'],[3,1,'r'],[3,7,'r'],[5,4,'B'],[7,0,'K']], [5,4],[3,2], 760],
+    [[[0,4,'k'],[2,0,'r'],[2,6,'r'],[4,3,'B'],[7,7,'K']], [4,3],[2,5], 770],
+    // Rook double attack
+    [[[0,4,'k'],[0,0,'r'],[3,4,'R'],[7,6,'K']], [3,4],[0,4], 650],
+    [[[0,6,'k'],[6,6,'r'],[3,6,'R'],[7,0,'K']], [3,6],[0,6], 655],
+    // Queen + knight combo
+    [[[0,6,'k'],[1,5,'p'],[1,6,'p'],[3,5,'N'],[6,6,'Q'],[7,0,'K']], [6,6],[0,6], 800],
+    [[[0,6,'k'],[1,5,'p'],[1,7,'p'],[3,4,'N'],[5,7,'Q'],[7,0,'K']], [5,7],[1,7], 810],
+    // Rook to 7th rank
+    [[[0,4,'k'],[1,3,'p'],[1,5,'p'],[5,0,'R'],[7,6,'K']], [5,0],[1,0], 780],
+    [[[0,4,'k'],[1,4,'p'],[5,7,'R'],[7,0,'K']], [5,7],[1,7], 760],
+    // Knight + bishop coordination
+    [[[0,6,'k'],[1,5,'p'],[1,6,'p'],[1,7,'p'],[3,4,'N'],[5,2,'B'],[7,0,'K']], [3,4],[2,6], 880],
+    // Zugzwang-like
+    [[[0,7,'k'],[1,7,'p'],[2,6,'K'],[3,5,'R']], [3,5],[1,5], 920],
+    [[[0,0,'k'],[1,0,'p'],[2,1,'K'],[3,2,'R']], [3,2],[1,2], 915],
+    // Long diagonal bishop attack
+    [[[0,7,'k'],[1,6,'p'],[3,4,'B'],[7,0,'K']], [3,4],[1,6], 650],
+    // En prise rook
+    [[[0,4,'k'],[4,4,'R'],[4,0,'r'],[7,6,'K']], [4,4],[4,0], 560],
+  ];
+  for(const [specs,fr,to,rat] of qForks) {
+    addP(bp(specs), fr, to, rat, 'Tactics','Find the Winning Move','White',
+      'Calculate carefully — there\'s a powerful move available!');
+  }
+
+  // More intermediate patterns - pawn promotions, discovered checks
+  const more = [
+    [[[1,0,'P'],[0,1,'r'],[7,4,'K'],[0,4,'k']], [1,0],[0,1], 750],
+    [[[1,7,'P'],[0,6,'n'],[7,4,'K'],[0,4,'k']], [1,7],[0,6], 760],
+    [[[1,4,'P'],[7,4,'K'],[0,4,'k'],[0,5,'r']], [1,4],[0,4], 820],
+    [[[1,3,'P'],[7,3,'K'],[0,3,'k'],[0,2,'r']], [1,3],[0,3], 815],
+    // Rook ending precision
+    [[[0,5,'k'],[2,7,'R'],[4,0,'K'],[1,5,'p']], [2,7],[2,5], 1050],
+    // Queen vs two rooks
+    [[[0,6,'k'],[2,5,'Q'],[0,5,'r'],[7,0,'K']], [2,5],[0,5], 700],
+    [[[0,2,'k'],[2,3,'Q'],[0,3,'r'],[7,7,'K']], [2,3],[0,3], 695],
+  ];
+  for(const [specs,fr,to,rat] of more) {
+    addP(bp(specs), fr, to, rat,'Tactics','Find the Best Move','White',
+      'Find the strongest continuation!');
+  }
+}
+
+// ──────────────────────────────────────────────────
+// SMOTHERED / SPECIAL MATES  (rating 900–1500)
+// ──────────────────────────────────────────────────
+function genSmothered() {
+  const sm = [
+    // Classic: knight c4 → b6# (original)
+    [[[0,0,'k'],[1,0,'r'],[1,1,'p'],[0,1,'p'],[4,2,'N'],[7,4,'K']], [4,2],[2,1], 1050],
+    // Variation: knight e4 → f6 smothers king g8
+    [[[0,6,'k'],[1,6,'r'],[1,7,'p'],[0,7,'p'],[4,4,'N'],[7,0,'K']], [4,4],[2,5], 1080],
+    // Variation: knight d4 → c6 smothers king b8
+    [[[0,1,'k'],[1,1,'r'],[1,2,'p'],[0,2,'p'],[4,3,'N'],[7,4,'K']], [4,3],[2,2], 1060],
+    // Epaulette mate: queen d6, king e8, rooks d8/f8
+    [[[0,4,'k'],[0,3,'r'],[0,5,'r'],[2,3,'Q'],[7,0,'K']], [2,3],[0,3], 880],
+    [[[0,4,'k'],[0,3,'r'],[0,5,'r'],[2,5,'Q'],[7,0,'K']], [2,5],[0,5], 885],
+    // Anastasia's mate: knight e7, rook h-file
+    [[[0,6,'k'],[1,6,'p'],[1,4,'N'],[7,7,'R'],[7,0,'K']], [7,7],[0,7], 820],
+    [[[0,2,'k'],[1,2,'p'],[1,3,'N'],[7,0,'R'],[7,7,'K']], [7,0],[0,0], 825],
+    // Legal's mate pattern
+    [[[0,4,'k'],[1,3,'p'],[1,4,'p'],[1,5,'p'],[2,2,'N'],[2,6,'N'],[3,4,'B'],[7,4,'K']], [2,6],[1,4], 1200],
+  ];
+  for(const [specs,fr,to,rat] of sm) {
+    addP(bp(specs), fr, to, rat,'Special Mate','Find the Checkmate!','White',
+      'A beautiful forced checkmate awaits — find it!');
+  }
+}
+
+// ──────────────────────────────────────────────────
+// ROOK ENDGAME TACTICS  (rating 600–1000)
+// ──────────────────────────────────────────────────
+function genRookEndgames() {
+  const re = [
+    // Lucena position-style: rook cuts off king, pawn promotes
+    [[[1,5,'P'],[3,5,'K'],[1,7,'k'],[7,5,'r']], [1,5],[0,5], 900],
+    [[[1,3,'P'],[3,3,'K'],[1,1,'k'],[7,3,'r']], [1,3],[0,3], 905],
+    // Rook vs passed pawn — rook captures
+    [[[1,4,'p'],[4,4,'R'],[7,0,'K'],[0,0,'k']], [4,4],[1,4], 550],
+    [[[1,2,'p'],[4,2,'R'],[7,7,'K'],[0,7,'k']], [4,2],[1,2], 555],
+    // Philidor position: rook defends rank
+    [[[1,4,'P'],[3,4,'K'],[5,4,'R'],[0,7,'k'],[2,7,'r']], [5,4],[5,0], 950],
+    // Rook pins pawn, king captures
+    [[[5,3,'R'],[5,7,'r'],[3,7,'K'],[3,3,'k']], [5,3],[5,7], 680],
+    // Double rook attack on king
+    [[[3,4,'R'],[5,4,'R'],[7,0,'K'],[0,4,'k']], [5,4],[0,4], 720],
+    [[[3,3,'R'],[5,3,'R'],[7,7,'K'],[0,3,'k']], [5,3],[0,3], 715],
+  ];
+  for(const [specs,fr,to,rat] of re) {
+    addP(bp(specs), fr, to, rat,'Endgame','Endgame Technique','White',
+      'Endgame precision! Find the winning move.');
+  }
+}
+
+// ──────────────────────────────────────────────────
+// PEPPER QUEUE — interactive puzzles (rating 400–2000).
+// Beginner puzzles (400–1000) are mate-in-1/2; harder ones (1500–2000) are
+// multi-move: you move, the computer plays the forced reply, you move again.
+// Every line is verified with Stockfish: legal start (enemy king not in check,
+// so no move ever captures a king), correct mate distance, ends in checkmate.
+// The engine also accepts ANY legal checkmating move, not just the scripted one.
+// ──────────────────────────────────────────────────
+function genPepperQueue() {
+  // Qa8#
+  addPLine('..k......ppp................bn.................p...PPPPPQ..R..K.',
+    [[[7, 0], [0, 0]]],
+    450, 'Mate in 1', 'Queen to a8', 'White',
+    'Mate in 1 - find the checkmating move.');
+
+  // Ra8#
+  addPLine('......k.R....ppp.....Q..pp................p.....P..PP.PP......K.',
+    [[[1, 0], [0, 0]]],
+    600, 'Mate in 1', 'Rook to a8', 'White',
+    'Mate in 1 - find the checkmating move.');
+
+  // Qd8#
+  addPLine('bk......ppp..........Q.n.......n....r...........PPP.P.PP......KR',
+    [[[2, 5], [0, 3]]],
+    750, 'Mate in 1', 'Queen to d8', 'White',
+    'Mate in 1 - find the checkmating move.');
+
+  // Qb8#
+  addPLine('......kbppQ..ppp..................p......r.......P.P..PP......K.',
+    [[[1, 2], [0, 1]]],
+    900, 'Mate in 1', 'Queen to b8', 'White',
+    'Mate in 1 - find the checkmating move.');
+
+  // Qxh7+ Kf8 Qh8#
+  addPLine('....b.k.....ppppp..............Q...N......r...nR.PPP.PPP......K.',
+    [[[3, 7], [1, 7]], [[0, 6], [0, 5]], [[1, 7], [0, 7]]],
+    1000, 'Mate in 2', 'Queen takes h7', 'White',
+    'Mate in 2 - find the forced checkmate.');
+
+  // Qxh7+ Kf8 Qf7#
+  addPLine('......k........p......pQ....N.....p......rn.n..RP.PP..PP......K.',
+    [[[2, 7], [1, 7]], [[0, 6], [0, 5]], [[1, 7], [1, 5]]],
+    1050, 'Mate in 2', 'Queen takes h7 (II)', 'White',
+    'Mate in 2 - find the forced checkmate.');
+
+  // Qxh5+ Kg8 Re8#
+  addPLine('...b..........pk.np............pn..N..Q..PP...........PP....R.K.',
+    [[[4, 6], [3, 7]], [[1, 7], [0, 6]], [[7, 4], [0, 4]]],
+    1150, 'Mate in 2', 'Queen takes h5', 'White',
+    'Mate in 2 - find the forced checkmate.');
+
+  // Rh8+ Be8 Qxe8#
+  addPLine('.k......ppp..b....Q......n........r....R..r...n.P.B...PP......K.',
+    [[[4, 7], [0, 7]], [[1, 5], [0, 4]], [[2, 2], [0, 4]]],
+    1250, 'Mate in 2', 'Rook to h8', 'White',
+    'Mate in 2 - find the forced checkmate.');
+
+  // Ra8+ Bd8 Rxd8#
+  addPLine('.....k..R...ppp..b........p..Bn......rQ.pPP.r...P.....PP......K.',
+    [[[1, 0], [0, 0]], [[2, 1], [0, 3]], [[0, 0], [0, 3]]],
+    1350, 'Mate in 2', 'Rook to a8', 'White',
+    'Mate in 2 - find the forced checkmate.');
+
+  // Ra8+ Kh7 Rh8#
+  addPLine('......k......pp.....Q.N....p...p...r....R.p........P.PPP......K.',
+    [[[5, 0], [0, 0]], [[0, 6], [1, 7]], [[0, 0], [0, 7]]],
+    1450, 'Mate in 2', 'Rook to a8 (II)', 'White',
+    'Mate in 2 - find the forced checkmate.');
+
+  // Rb1+ Ka7 Qa4#
+  addPLine('.k.....r..pp.p....Q..b.N.......n..........P...p...B.P.PP....R.K.',
+    [[[7, 4], [7, 1]], [[0, 1], [1, 0]], [[2, 2], [4, 0]]],
+    1500, 'Mate in 2', 'Rook to b1', 'White',
+    'Mate in 2 - find the forced checkmate.');
+
+  // Qc8+ Bd8 Qxd8#
+  addPLine('.....k..R.Qnppp.........b.......b......p.p......P....PPP......K.',
+    [[[1, 2], [0, 2]], [[3, 0], [0, 3]], [[0, 2], [0, 3]]],
+    1650, 'Mate in 2', 'Queen to c8', 'White',
+    'Mate in 2 - find the forced checkmate.');
+
+  // Rd8+ Ne8 Qxe8#
+  addPLine('.....k.r....ppp......n...Q..N....n..b....P..........P.PP...R..K.',
+    [[[7, 3], [0, 3]], [[2, 5], [0, 4]], [[3, 1], [0, 4]]],
+    1750, 'Mate in 2', 'Rook to d8', 'White',
+    'Mate in 2 - find the forced checkmate.');
+
+  // Rh8+ Ka7 Qxa4+ Ba5 Qxa5#
+  addPLine('.k.......pp.N....bQ.............p..pp..R........P.P...PP......K.',
+    [[[4, 7], [0, 7]], [[0, 1], [1, 0]], [[2, 2], [4, 0]], [[2, 1], [3, 0]], [[4, 0], [3, 0]]],
+    1900, 'Mate in 3', 'Rook to h8 (II)', 'White',
+    'Mate in 3 - find the forced checkmate.');
+
+  // Qd8+ Re8 Qxe8+ Nf8 Qxf8#
+  addPLine('.......k....r.pp.Q....n...r..........b...p......PP...PPP......KR',
+    [[[2, 1], [0, 3]], [[1, 4], [0, 4]], [[0, 3], [0, 4]], [[2, 6], [0, 5]], [[0, 4], [0, 5]]],
+    2000, 'Mate in 3', 'Queen to d8', 'White',
+    'Mate in 3 - find the forced checkmate.');
+
+  // ─────────────── Promoted from Testers (15 more) ───────────────
+  // Re8#
+  addPLine('.......kQ.....pprp.............r...pR......b.....PP..PPP......K.',
+    [[[4, 4], [0, 4]]],
+    500, 'Mate in 1', 'Rook to e8', 'White',
+    'Mate in 1 - find the checkmating move.');
+
+  // Qf8#
+  addPLine('.......k.......p.n.....Q....N.p.R.p.....nP......P..P.PPP......K.',
+    [[[2, 7], [0, 5]]],
+    650, 'Mate in 1', 'Queen to f8', 'White',
+    'Mate in 1 - find the checkmating move.');
+
+  // Nf7#
+  addPLine('......nkp.Q...pp...b........N..........r....pp...PP...PPR.....K.',
+    [[[3, 4], [1, 5]]],
+    760, 'Mate in 1', 'Knight to f7', 'White',
+    'Mate in 1 - find the checkmating move.');
+
+  // Qa8#
+  addPLine('..k.....Qppp....p...n...b.....N....n...........RP..P.PPP......K.',
+    [[[1, 0], [0, 0]]],
+    860, 'Mate in 1', 'Queen to a8', 'White',
+    'Mate in 1 - find the checkmating move.');
+
+  // Qxf8#
+  addPLine('.k...n..ppp...prn....Q......p..........R.........PP...PP......K.',
+    [[[2, 5], [0, 5]]],
+    960, 'Mate in 1', 'Queen takes f8', 'White',
+    'Mate in 1 - find the checkmating move.');
+
+  // Rh8+ Be8 Rxe8#
+  addPLine('.k......ppp.....rQ.......b..........p...n.P...pRP...P.PP......K.',
+    [[[5, 7], [0, 7]], [[3, 1], [0, 4]], [[0, 7], [0, 4]]],
+    1100, 'Mate in 2', 'Rook to h8', 'White',
+    'Mate in 2 - find the forced checkmate.');
+
+  // Ne7+ g6 Rh3#
+  addPLine('........r.....pk....p.N....rQ........p....PB.R.......PPP......K.',
+    [[[2, 6], [1, 4]], [[1, 6], [2, 6]], [[5, 5], [5, 7]]],
+    1200, 'Mate in 2', 'Knight to e7', 'White',
+    'Mate in 2 - find the forced checkmate.');
+
+  // Ra8+ Rd8 Rxd8#
+  addPLine('.....kr.....p.p....r.p.Q......N........pR.......P....PPP......K.',
+    [[[5, 0], [0, 0]], [[2, 3], [0, 3]], [[0, 0], [0, 3]]],
+    1300, 'Mate in 2', 'Rook to a8', 'White',
+    'Mate in 2 - find the forced checkmate.');
+
+  // Qh5+ Kg8 Nxe7#
+  addPLine('.....n....p.b.pkn.N.............r.....Q.....pR..P.P..PPP......K.',
+    [[[4, 6], [3, 7]], [[1, 7], [0, 6]], [[2, 2], [1, 4]]],
+    1550, 'Mate in 2', 'Queen to h5', 'White',
+    'Mate in 2 - find the forced checkmate.');
+
+  // Qg6+ Kh8 Qh5#
+  addPLine('..............pkp...Q....b......n.Bp.N.pbP........PP.PPP...R..K.',
+    [[[2, 4], [2, 6]], [[1, 7], [0, 7]], [[2, 6], [3, 7]]],
+    1600, 'Mate in 2', 'Queen to g6', 'White',
+    'Mate in 2 - find the forced checkmate.');
+
+  // Qd8+ Be8 Qxe8#
+  addPLine('......k...Q...pp..N...b......B...........p......P...PPPP....R.K.',
+    [[[1, 2], [0, 3]], [[2, 6], [0, 4]], [[0, 3], [0, 4]]],
+    1700, 'Mate in 2', 'Queen to d8', 'White',
+    'Mate in 2 - find the forced checkmate.');
+
+  // Qf8+ Re8 Qxe8#
+  addPLine('.k......ppp....p....r..Q...p.........b...r.b.....PP..PPP....R.K.',
+    [[[2, 7], [0, 5]], [[2, 4], [0, 4]], [[0, 5], [0, 4]]],
+    1800, 'Mate in 2', 'Queen to f8', 'White',
+    'Mate in 2 - find the forced checkmate.');
+
+  // Rh8+ Kb7 Qxc6#
+  addPLine('.k......p.p.......r......p..N.p.....Q..R....p.....PPP.PP......K.',
+    [[[4, 7], [0, 7]], [[0, 1], [1, 1]], [[4, 4], [2, 2]]],
+    1850, 'Mate in 2', 'Rook to h8', 'White',
+    'Mate in 2 - find the forced checkmate.');
+
+  // Ra8+ Rb8 Rxb8+ Rd8 Rxd8#
+  addPLine('......k.R..r.ppppr.....Q.................Pb.....P.P...PP......K.',
+    [[[1, 0], [0, 0]], [[2, 1], [0, 1]], [[0, 0], [0, 1]], [[1, 3], [0, 3]], [[0, 1], [0, 3]]],
+    1950, 'Mate in 3', 'Rook to a8', 'White',
+    'Mate in 3 - find the forced checkmate.');
+
+  // Qh5+ Kg8 Ra8+ Re8 Rxe8#
+  addPLine('..............pk....rp..R...Q............Pb.pr.......PPP......K.',
+    [[[3, 4], [3, 7]], [[1, 7], [0, 6]], [[3, 0], [0, 0]], [[2, 4], [0, 4]], [[0, 0], [0, 4]]],
+    1990, 'Mate in 3', 'Queen to h5', 'White',
+    'Mate in 3 - find the forced checkmate.');
+}
+
+// Puzzles tab — 3500 real-game puzzles (501-3175): 100 inline below + 3400 from puzzles_data.js.
+// (genPepperQueue() and the older generators remain defined but are no longer loaded.)
+addPLine('......k.ppR..pp.....p.p.....P.N....r..P..P....K.P...r...........',
+  [[[1, 2], [0, 2]], [[4, 3], [0, 3]], [[0, 2], [0, 3]]],
+  536, "Mate in 2", "Mate in 2", 'White',
+  "From a real game (Lichess, rated 536). Find the best move.");
+addPLine('R..r..k.......pp...N.....nP...........P..P...P..P..K..n.........',
+  [[[0, 0], [0, 3]]],
+  543, "Mate in 1", "Mate in 1", 'White',
+  "From a real game (Lichess, rated 543). Find the best move.");
+addPLine('................n.R....pr.....p......p.k.......P.....PK.........',
+  [[[2, 2], [2, 7]]],
+  573, "Mate in 1", "Mate in 1", 'White',
+  "From a real game (Lichess, rated 573). Find the best move.");
+addPLine('q....r.k.p...Qpp.n.........P..pP..PP..P..P........K..........R..',
+  [[[1, 5], [0, 5]], [[0, 0], [0, 5]], [[7, 5], [0, 5]]],
+  582, "Mate in 2", "Mate in 2", 'White',
+  "From a real game (Lichess, rated 582). Find the best move.");
+addPLine('...rk.nrp.q...pp.pb.p.....b..p..........N.BQ.P..PPP...PP..KR...R',
+  [[[5, 3], [0, 3]], [[1, 2], [0, 3]], [[7, 3], [0, 3]]],
+  612, "Win Material", "Win Material", 'White',
+  "From a real game (Lichess, rated 612). Find the best move.");
+addPLine('......k.B.........p..pK....nr..p.........Q...PP.P......r........',
+  [[[5, 1], [0, 1]], [[3, 4], [0, 4]], [[0, 1], [0, 4]]],
+  632, "Mate in 2", "Mate in 2", 'White',
+  "From a real game (Lichess, rated 632). Find the best move.");
+addPLine('...r.rk.p...R..pb..P..p...p............QP..q.P.P......P...R...K.',
+  [[[4, 7], [1, 7]]],
+  712, "Mate in 1", "Mate in 1", 'White',
+  "From a real game (Lichess, rated 712). Find the best move.");
+addPLine('.............p..p...kr..................R.P.........P.......K...',
+  [[[5, 0], [2, 0]], [[2, 4], [3, 4]], [[2, 0], [2, 5]]],
+  762, "Win Material", "Win Material", 'White',
+  "From a real game (Lichess, rated 762). Find the best move.");
+addPLine('.....rk.p..q..p..p..p.Np...p...P...Pb.P...P.....PP...R........K.',
+  [[[6, 5], [0, 5]], [[0, 6], [1, 7]], [[0, 5], [0, 7]]],
+  763, "Mate in 2", "Mate in 2", 'White',
+  "From a real game (Lichess, rated 763). Find the best move.");
+addPLine('.............p...R............pk...........r..PP.....K..........',
+  [[[5, 6], [4, 6]], [[3, 7], [4, 7]], [[2, 1], [2, 7]]],
+  831, "Mate in 2", "Mate in 2", 'White',
+  "From a real game (Lichess, rated 831). Find the best move.");
+addPLine('....r.k...Q....ppp........p..n..P..P.P.q..P....P..PB..b.....R.K.',
+  [[[7, 4], [0, 4]]],
+  885, "Mate in 1", "Mate in 1", 'White',
+  "From a real game (Lichess, rated 885). Find the best move.");
+addPLine('.rr...k.....ppbp...p.np..b.N....P..BP........P..P..R..PPR.....K.',
+  [[[3, 3], [1, 4]], [[0, 6], [0, 5]], [[1, 4], [0, 2]]],
+  888, "Win Material", "Fork", 'White',
+  "From a real game (Lichess, rated 888). Find the best move.");
+addPLine('.....r.......p.k..ppq.p.....p.b.....N..P...P.....P.R.P......K.R.',
+  [[[4, 4], [3, 6]], [[1, 7], [2, 7]], [[3, 6], [2, 4]]],
+  907, "Win Material", "Fork", 'White',
+  "From a real game (Lichess, rated 907). Find the best move.");
+addPLine('r.b..rk.....bpppp.n........q....Pp.........B.N...B...PPPR..Q.RK.',
+  [[[5, 3], [1, 7]], [[0, 6], [1, 7]], [[7, 3], [3, 3]]],
+  956, "Win Material", "Discovered Attack", 'White',
+  "From a real game (Lichess, rated 956). Find the best move.");
+addPLine('r.b.....ppr..k.p.....p.......p............P...P.P....PP.....RK.R',
+  [[[7, 7], [1, 7]], [[1, 5], [2, 6]], [[1, 7], [1, 2]]],
+  974, "Win Material", "Skewer", 'White',
+  "From a real game (Lichess, rated 974). Find the best move.");
+addPLine('..kr.br.ppBb.ppp...........P..Q.......n......n..PP...qPPRN..R..K',
+  [[[3, 6], [0, 3]]],
+  1020, "Mate in 1", "Mate in 1", 'White',
+  "From a real game (Lichess, rated 1020). Find the best move.");
+addPLine('r.bqkb.rpp.pnppp..n......N..p........B..........PPP.PPPPR..QKBNR',
+  [[[3, 1], [2, 3]]],
+  1032, "Mate in 1", "Mate in 1", 'White',
+  "From a real game (Lichess, rated 1032). Find the best move.");
+addPLine('..r..rk......pppbq..p...p..pP.N.Pb.p..P..P..P..P..QN......R.K..R',
+  [[[6, 2], [1, 7]]],
+  1070, "Mate in 1", "Mate in 1", 'White',
+  "From a real game (Lichess, rated 1070). Find the best move.");
+addPLine('r...k.nr.pp..ppp.pnp........p.q...B.P......P.Q.PPPP..PP.R....RK.',
+  [[[5, 5], [1, 5]], [[0, 4], [0, 3]], [[1, 5], [0, 5]], [[0, 3], [1, 3]], [[0, 5], [0, 0]]],
+  1128, "Win Material", "Skewer", 'White',
+  "From a real game (Lichess, rated 1128). Find the best move.");
+addPLine('..Q.....p.....pk.r..p...K..pP..p...P......P....RPq..............',
+  [[[5, 7], [3, 7]], [[1, 7], [2, 6]], [[0, 2], [0, 4]]],
+  1175, "Mate in 2", "Mate in 2", 'White',
+  "From a real game (Lichess, rated 1175). Find the best move.");
+addPLine('....rk..p....q...p...Q.b.........p.....N..P.p...P...P.....K.....',
+  [[[4, 7], [2, 6]], [[0, 5], [0, 6]], [[2, 5], [0, 7]]],
+  1204, "Mate in 2", "Mate in 2", 'White',
+  "From a real game (Lichess, rated 1204). Find the best move.");
+addPLine('....r.k..p..R.p.p..p..PpP.pP.............R...p...P.q...P.....B.K',
+  [[[1, 4], [0, 4]]],
+  1231, "Mate in 1", "Mate in 1", 'White',
+  "From a real game (Lichess, rated 1231). Find the best move.");
+addPLine('.....kr.pp.b.p......p..p..KpP..B.....P..P.....R........P........',
+  [[[5, 6], [0, 6]], [[0, 5], [0, 6]], [[3, 2], [2, 3]]],
+  1300, "Win Material", "Win Material", 'White',
+  "From a real game (Lichess, rated 1300). Find the best move.");
+addPLine('...r....p.....k..p.qpr.p.Q.pn.p....P.pP..PP.....P.....PP....RRK.',
+  [[[4, 3], [3, 4]], [[2, 3], [3, 2]], [[3, 1], [3, 2]], [[2, 1], [3, 2]], [[3, 4], [2, 5]]],
+  1317, "Win Material", "Fork", 'White',
+  "From a real game (Lichess, rated 1317). Find the best move.");
+addPLine('....rk.r.pp..p..p..p...p...N.......P..q.........PPP......K..Q.NR',
+  [[[7, 4], [0, 4]], [[0, 5], [0, 4]], [[3, 3], [2, 5]], [[0, 4], [1, 4]], [[2, 5], [4, 6]]],
+  1338, "Win Material", "Attraction", 'White',
+  "From a real game (Lichess, rated 1338). Find the best move.");
+addPLine('...r...k......p.....Q.......B....p...P......PKP....q............',
+  [[[2, 4], [2, 7]], [[0, 7], [0, 6]], [[2, 7], [1, 6]]],
+  1384, "Mate in 2", "Mate in 2", 'White',
+  "From a real game (Lichess, rated 1384). Find the best move.");
+addPLine('..r.........ppkp......p..p.......P......P...B....br..PPP.R.R..K.',
+  [[[7, 1], [6, 1]], [[6, 2], [6, 1]], [[5, 4], [4, 3]], [[1, 5], [2, 5]], [[4, 3], [6, 1]]],
+  1428, "Win Material", "Attraction", 'White',
+  "From a real game (Lichess, rated 1428). Find the best move.");
+addPLine('r.....k.pp..q.p...p.p..p...nP.pP...P..P...PQ.r..PPB.....R.....K.',
+  [[[5, 3], [1, 7]], [[0, 6], [1, 5]], [[6, 2], [2, 6]], [[1, 5], [0, 5]], [[1, 7], [0, 7]]],
+  1442, "Mate in 3", "Mate in 3", 'White',
+  "From a real game (Lichess, rated 1442). Find the best move.");
+addPLine('.k.r...r........pp.n..p...q......Q.........R..P.PPP..P.P...R..K.',
+  [[[4, 1], [3, 2]], [[2, 1], [3, 2]], [[5, 3], [2, 3]], [[0, 3], [2, 3]], [[7, 3], [2, 3]]],
+  1448, "Win Material", "Win Material", 'White',
+  "From a real game (Lichess, rated 1448). Find the best move.");
+addPLine('.....r.k..........b..rQp.p.p..p..q....P..................B...R.K',
+  [[[2, 6], [1, 7]]],
+  1496, "Mate in 1", "Mate in 1", 'White',
+  "From a real game (Lichess, rated 1496). Find the best move.");
+addPLine('.....bk...Q..p.p.....qp.p.......P.Bp.....P.....P..r..PP....R..K.',
+  [[[4, 2], [1, 5]], [[0, 6], [1, 6]], [[1, 2], [6, 2]]],
+  1501, "Win Material", "Discovered Attack", 'White',
+  "From a real game (Lichess, rated 1501). Find the best move.");
+addPLine('..k..b.rpp...ppp........BN..p.P...n.Nn.P........PP...P....KR....',
+  [[[7, 3], [0, 3]]],
+  1559, "Mate in 1", "Mate in 1", 'White',
+  "From a real game (Lichess, rated 1559). Find the best move.");
+addPLine('r.bq...rpp.nbkp...p.p..p..........BP.....PN...P.P...QP.P...R.RK.',
+  [[[6, 4], [2, 4]], [[1, 5], [0, 5]], [[2, 4], [1, 5]]],
+  1575, "Mate in 2", "Mate in 2", 'White',
+  "From a real game (Lichess, rated 1575). Find the best move.");
+addPLine('...R.........................p.............p...P.k...rP....K....',
+  [[[0, 3], [5, 3]], [[6, 5], [6, 6]], [[5, 3], [6, 3]], [[6, 6], [6, 3]], [[7, 3], [6, 3]]],
+  1631, "Win Material", "Win Material", 'White',
+  "From a real game (Lichess, rated 1631). Find the best move.");
+addPLine('r..q.rk.p.p.bppp..pp..b.....p.......n.PN..NP...PPPP..PK.R.BQ.R..',
+  [[[4, 7], [2, 6]], [[4, 4], [5, 2]], [[2, 6], [1, 4]], [[0, 3], [1, 4]], [[6, 1], [5, 2]]],
+  1653, "Win Material", "Win Material", 'White',
+  "From a real game (Lichess, rated 1653). Find the best move.");
+addPLine('r....bk...rqp..pn.p...p....p.p.....P.P.BpP.BP...P.Q..PRP.KR.....',
+  [[[5, 3], [3, 5]], [[1, 4], [2, 4]], [[3, 5], [2, 6]]],
+  1692, "Win Material", "Pin", 'White',
+  "From a real game (Lichess, rated 1692). Find the best move.");
+addPLine('r.b...k.pp....b.n.pqprQ.....p.....P..PP.P..B.....P......R.B.K..R',
+  [[[7, 7], [0, 7]], [[0, 6], [0, 7]], [[2, 6], [1, 7]]],
+  1738, "Mate in 2", "Mate in 2", 'White',
+  "From a real game (Lichess, rated 1738). Find the best move.");
+addPLine('..r....kp....p.pb....p..............P..P.P.r.QP.P....PB...qR..K.',
+  [[[5, 5], [2, 5]], [[0, 7], [0, 6]], [[7, 3], [7, 2]]],
+  1782, "Win Material", "Fork", 'White',
+  "From a real game (Lichess, rated 1782). Find the best move.");
+addPLine('.r..r.k....p.pb.p..q...p.p...Pp....p....P......QBPP...PP....RRK.',
+  [[[7, 4], [0, 4]], [[0, 1], [0, 4]], [[3, 5], [2, 5]]],
+  1795, "Win Material", "Win Material", 'White',
+  "From a real game (Lichess, rated 1795). Find the best move.");
+addPLine('r.b..rk......p.pp...pq...p.p...........n.P.....PP.P.QPB..K.R..R.',
+  [[[6, 6], [3, 3]], [[4, 7], [2, 6]], [[3, 3], [0, 0]]],
+  1854, "Win Material", "Discovered Attack", 'White',
+  "From a real game (Lichess, rated 1854). Find the best move.");
+addPLine('....qr..pR....pk..b..p.p....pPP....bB......P...QP.r....P....BR.K',
+  [[[5, 7], [2, 7]], [[1, 7], [0, 6]], [[2, 7], [1, 6]]],
+  1857, "Mate in 2", "Mate in 2", 'White',
+  "From a real game (Lichess, rated 1857). Find the best move.");
+addPLine('.....rk.pp.n.r.....p..N...pQ......P.........P.P.qP..KPP........R',
+  [[[2, 6], [1, 4]], [[0, 6], [1, 6]], [[3, 3], [3, 6]]],
+  1872, "Mate in 2", "Mate in 2", 'White',
+  "From a real game (Lichess, rated 1872). Find the best move.");
+addPLine('r.b..rk..p..b.p.pq..p.P....pn....P.P....P.N.P.........P.R..QK..R',
+  [[[7, 7], [0, 7]], [[0, 6], [0, 7]], [[7, 3], [3, 7]], [[0, 7], [0, 6]], [[3, 7], [1, 7]]],
+  1873, "Mate in 3", "Mate in 3", 'White',
+  "From a real game (Lichess, rated 1873). Find the best move.");
+addPLine('...r..k.p...ppb.b...q.pp..p.......N......r.RB...P....PPP..R.N.K.',
+  [[[5, 3], [0, 3]], [[0, 6], [1, 7]], [[6, 0], [5, 1]]],
+  1901, "Win Material", "Hanging Piece", 'White',
+  "From a real game (Lichess, rated 1901). Find the best move.");
+addPLine('r.bq...r.npk..b.pp.p...p...Pp..B..P.Pp.Q..N.....PP.N..PPR....RK.',
+  [[[4, 7], [4, 6]], [[1, 3], [1, 4]], [[4, 6], [1, 6]]],
+  1914, "Mate in 2", "Mate in 2", 'White',
+  "From a real game (Lichess, rated 1914). Find the best move.");
+addPLine('..r.r.k.pp...ppp.....n.....p.....P.N......n....PPB..RPP.R.....K.',
+  [[[6, 4], [0, 4]], [[2, 5], [0, 4]], [[7, 0], [7, 2]]],
+  1941, "Win Material", "Win Material", 'White',
+  "From a real game (Lichess, rated 1941). Find the best move.");
+addPLine('...r.rk..b...qn.pp.Q..p...p.n.PpP.P.Pp.N..P..B.P.....B.KR....R..',
+  [[[2, 3], [3, 4]], [[0, 3], [0, 4]], [[3, 4], [2, 3]]],
+  1943, "Win Material", "Hanging Piece", 'White',
+  "From a real game (Lichess, rated 1943). Find the best move.");
+addPLine('...........r...ppp.pk.pP...r.pP.P.PRpP...P..P.......K...........',
+  [[[4, 2], [3, 3]], [[2, 4], [1, 4]], [[4, 3], [4, 2]]],
+  1968, "Win Material", "Win Material", 'White',
+  "From a real game (Lichess, rated 1968). Find the best move.");
+addPLine('r..q...r.....k..R..P.....pbp..pp.........P....B..P..QPPP......K.',
+  [[[2, 0], [0, 0]], [[0, 3], [0, 0]], [[6, 4], [1, 4]], [[1, 5], [2, 6]], [[1, 4], [2, 4]]],
+  1969, "Win Material", "Exposed King", 'White',
+  "From a real game (Lichess, rated 1969). Find the best move.");
+addPLine('r.b.k.nrpp..p..p..q.Npp...n.p.....B.......N...B.PPPR.PPP..K....R',
+  [[[6, 3], [0, 3]], [[0, 4], [1, 5]], [[0, 3], [0, 5]]],
+  1996, "Mate in 2", "Mate in 2", 'White',
+  "From a real game (Lichess, rated 1996). Find the best move.");
+addPLine('......k.p....pp..p.....p....b.......B.......P.P.P.R..PKP.q.r....',
+  [[[6, 2], [0, 2]], [[7, 3], [0, 3]], [[0, 2], [0, 3]]],
+  555, "Mate in 2", "Mate in 2", 'White',
+  "From a real game (Lichess, rated 555). Find the best move.");
+addPLine('r.....k.pbp..ppp......q....p.......p...r..P.R.P.PP..QP.PR.....K.',
+  [[[5, 4], [0, 4]], [[0, 0], [0, 4]], [[6, 4], [0, 4]]],
+  587, "Mate in 2", "Mate in 2", 'White',
+  "From a real game (Lichess, rated 587). Find the best move.");
+addPLine('......k.p.p...pp....N....p........q.r.n...B.....PP....PP...R.R.K',
+  [[[7, 5], [0, 5]]],
+  645, "Mate in 1", "Mate in 1", 'White',
+  "From a real game (Lichess, rated 645). Find the best move.");
+addPLine('r......k..q...pp..........p.....R.np...........P..PB.PP.......K.',
+  [[[4, 0], [0, 0]], [[1, 2], [0, 1]], [[0, 0], [0, 1]]],
+  654, "Mate in 2", "Mate in 2", 'White',
+  "From a real game (Lichess, rated 654). Find the best move.");
+addPLine('rqnr..k......pppp...........p............P.....PPBP..PP.R..R..K.',
+  [[[7, 3], [0, 3]]],
+  687, "Mate in 1", "Mate in 1", 'White',
+  "From a real game (Lichess, rated 687). Find the best move.");
+addPLine('r..q.rk.ppp..ppp..n........p..N....P.....B.....PP.Q..PP.R.B..bK.',
+  [[[6, 2], [1, 7]]],
+  694, "Mate in 1", "Mate in 1", 'White',
+  "From a real game (Lichess, rated 694). Find the best move.");
+addPLine('..kr...rp..n..pp..pB.bp......q....B.............PPP..PPP...R.RK.',
+  [[[4, 2], [2, 0]]],
+  721, "Mate in 1", "Mate in 1", 'White',
+  "From a real game (Lichess, rated 721). Find the best move.");
+addPLine('...q.r.kp.r...pp.........p.BpPb...Pp..Q.P..P..R.......PPR.....K.',
+  [[[4, 6], [3, 6]], [[0, 3], [3, 6]], [[5, 6], [3, 6]]],
+  827, "Win Material", "Win Material", 'White',
+  "From a real game (Lichess, rated 827). Find the best move.");
+addPLine('rn...q.r....pk....pp.nppp.....Q..p.PPNP......P..PPP.....R....KNR',
+  [[[3, 6], [2, 6]]],
+  842, "Mate in 1", "Mate in 1", 'White',
+  "From a real game (Lichess, rated 842). Find the best move.");
+addPLine('r....rk...q..ppp...pp.......Pb.N.p.......p....Q.PPP...PP.K.RR...',
+  [[[5, 6], [1, 6]]],
+  858, "Mate in 1", "Mate in 1", 'White',
+  "From a real game (Lichess, rated 858). Find the best move.");
+addPLine('rnbk.r..pppp.Bpp.............p......p.....PP....P.P..PPPR.B.K..R',
+  [[[7, 2], [3, 6]]],
+  879, "Mate in 1", "Mate in 1", 'White',
+  "From a real game (Lichess, rated 879). Find the best move.");
+addPLine('...q..k....r....pp...p.Q..b.n...P...N.....P......P....PPR......K',
+  [[[4, 4], [2, 5]], [[0, 3], [2, 5]], [[2, 7], [2, 5]]],
+  898, "Win Material", "Fork", 'White',
+  "From a real game (Lichess, rated 898). Find the best move.");
+addPLine('rn.qrk..ppp...pQ...p.pP....Pp.....P.P...........PP...PP.R.B.K...',
+  [[[1, 7], [0, 7]], [[0, 5], [1, 4]], [[0, 7], [1, 6]]],
+  947, "Mate in 2", "Mate in 2", 'White',
+  "From a real game (Lichess, rated 947). Find the best move.");
+addPLine('r...qrk...p..pp.p..bpn.p..ppN......P.Pb..PP.P.B.P..N..PPR..Q.RK.',
+  [[[3, 4], [4, 6]], [[2, 5], [4, 6]], [[7, 3], [4, 6]]],
+  961, "Win Material", "Win Material", 'White',
+  "From a real game (Lichess, rated 961). Find the best move.");
+addPLine('Q............qk.p..p....b.p.pr..P.............P.....KP.R........',
+  [[[0, 0], [0, 7]], [[1, 6], [2, 6]], [[0, 7], [2, 7]]],
+  980, "Mate in 2", "Mate in 2", 'White',
+  "From a real game (Lichess, rated 980). Find the best move.");
+addPLine('....r..k...q...r.p....pQp.pP......P....P.N....p.PP...RK.........',
+  [[[6, 5], [0, 5]], [[0, 4], [0, 5]], [[2, 7], [0, 5]]],
+  1024, "Mate in 2", "Mate in 2", 'White',
+  "From a real game (Lichess, rated 1024). Find the best move.");
+addPLine('r.....k..p.r.pp.p...pnp...qN.............Q.....PPP...PP....RR.K.',
+  [[[3, 3], [2, 5]], [[1, 6], [2, 5]], [[7, 3], [1, 3]]],
+  1055, "Win Material", "Discovered Attack", 'White',
+  "From a real game (Lichess, rated 1055). Find the best move.");
+addPLine('.....rk..p..p..pp..p......pPb..R..P.P....P.BKPrR................',
+  [[[5, 7], [5, 6]], [[3, 4], [5, 6]], [[3, 7], [3, 6]], [[0, 6], [1, 5]], [[3, 6], [5, 6]]],
+  1095, "Win Material", "Fork", 'White',
+  "From a real game (Lichess, rated 1095). Find the best move.");
+addPLine('r.n...k....R.ppp..p..........P...........P..r...P............RK.',
+  [[[1, 3], [0, 3]], [[5, 4], [0, 4]], [[0, 3], [0, 4]]],
+  1098, "Mate in 2", "Mate in 2", 'White',
+  "From a real game (Lichess, rated 1098). Find the best move.");
+addPLine('rn...k.rpp..bp.p..p.pNp.......B......P.........PPPP....P..K.RR..',
+  [[[3, 6], [2, 7]]],
+  1164, "Mate in 1", "Mate in 1", 'White',
+  "From a real game (Lichess, rated 1164). Find the best move.");
+addPLine('r...brk......pp.p..qpn.pP..pn.....pP......P.PN.......PPPRB.QK..R',
+  [[[4, 3], [3, 4]], [[2, 3], [1, 4]], [[3, 4], [2, 5]]],
+  1205, "Win Material", "Fork", 'White',
+  "From a real game (Lichess, rated 1205). Find the best move.");
+addPLine('r....rk..bb..pppp.n.p.......P...Np.q.....B..NP...P....PP..RQ.RK.',
+  [[[7, 3], [4, 3]], [[2, 2], [4, 3]], [[7, 2], [1, 2]], [[4, 3], [5, 1]], [[1, 2], [1, 1]]],
+  1218, "Win Material", "Win Material", 'White',
+  "From a real game (Lichess, rated 1218). Find the best move.");
+addPLine('.....r.......p......nP.k....N.p...............P.......K.R.......',
+  [[[7, 0], [7, 7]]],
+  1247, "Mate in 1", "Mate in 1", 'White',
+  "From a real game (Lichess, rated 1247). Find the best move.");
+addPLine('.......kp.....pp..r..q....p....Q................P.....PP...r.R.K',
+  [[[3, 7], [0, 4]], [[2, 5], [0, 5]], [[0, 4], [0, 5]]],
+  1295, "Mate in 2", "Mate in 2", 'White',
+  "From a real game (Lichess, rated 1295). Find the best move.");
+addPLine('r.q.r.k..p...pp.n.p....pp..pp..PP...P.....P..P...P.QBb..R.BK...R',
+  [[[6, 4], [2, 0]], [[1, 1], [2, 0]], [[6, 3], [6, 5]]],
+  1300, "Win Material", "Discovered Attack", 'White',
+  "From a real game (Lichess, rated 1300). Find the best move.");
+addPLine('...r.r.k.p....p.p.p...Qp..q................n.N.PPP.R..P......R.K',
+  [[[6, 3], [5, 3]], [[0, 3], [5, 3]], [[2, 6], [5, 3]]],
+  1376, "Win Material", "Win Material", 'White',
+  "From a real game (Lichess, rated 1376). Find the best move.");
+addPLine('...r.....p....p...pB.bBpp.Pk.......rp...P........PK..P......R...',
+  [[[2, 6], [1, 5]]],
+  1386, "Mate in 1", "Mate in 1", 'White',
+  "From a real game (Lichess, rated 1386). Find the best move.");
+addPLine('r.b..rk.ppq..p.p......p.....b..Q....R......B....PP...PPPR.B...K.',
+  [[[3, 7], [3, 4]], [[1, 2], [3, 4]], [[4, 4], [3, 4]]],
+  1455, "Win Material", "Win Material", 'White',
+  "From a real game (Lichess, rated 1455). Find the best move.");
+addPLine('..............p...B..n.....b..k....B..........K.....P...........',
+  [[[4, 3], [2, 5]], [[3, 6], [3, 5]], [[2, 2], [3, 3]]],
+  1469, "Win Material", "Win Material", 'White',
+  "From a real game (Lichess, rated 1469). Find the best move.");
+addPLine('r..qkbnrpp.....p............Nb...........Qp.....PP..PPPPR...KB.R',
+  [[[5, 1], [1, 5]]],
+  1481, "Mate in 1", "Mate in 1", 'White',
+  "From a real game (Lichess, rated 1481). Find the best move.");
+addPLine('.........R.....R....kpp.....p.......P..K.....P.P.......r......r.',
+  [[[1, 1], [2, 1]]],
+  1513, "Mate in 1", "Mate in 1", 'White',
+  "From a real game (Lichess, rated 1513). Find the best move.");
+addPLine('r....r....q.Nb.......Qpk..n....ppp.....P.........PP..PP...KR...R',
+  [[[1, 4], [3, 5]], [[2, 7], [1, 7]], [[2, 5], [1, 6]]],
+  1585, "Mate in 2", "Mate in 2", 'White',
+  "From a real game (Lichess, rated 1585). Find the best move.");
+addPLine('...k..q.p..p...p.p.P......p.......P..Q.K........P.....b......R..',
+  [[[4, 5], [0, 5]], [[0, 6], [0, 5]], [[7, 5], [0, 5]]],
+  1649, "Mate in 2", "Mate in 2", 'White',
+  "From a real game (Lichess, rated 1649). Find the best move.");
+addPLine('...................RP.....Pn....ppN.k..p........rP.K............',
+  [[[2, 3], [3, 3]], [[4, 4], [3, 3]], [[2, 4], [1, 4]]],
+  1669, "Win Material", "Advanced Pawn", 'White',
+  "From a real game (Lichess, rated 1669). Find the best move.");
+addPLine('.......k..r...p..p..p..b...p..NQ.q.P.....p...........R........K.',
+  [[[3, 7], [0, 4]], [[4, 1], [0, 5]], [[6, 5], [0, 5]]],
+  1727, "Mate in 2", "Mate in 2", 'White',
+  "From a real game (Lichess, rated 1727). Find the best move.");
+addPLine('.....rk......ppp.p.......q...P.Q..pp...P......R.......PK........',
+  [[[5, 6], [1, 6]], [[0, 6], [1, 6]], [[3, 5], [2, 5]], [[1, 6], [2, 5]], [[3, 7], [3, 1]]],
+  1746, "Win Material", "Attraction", 'White',
+  "From a real game (Lichess, rated 1746). Find the best move.");
+addPLine('........p............P..PP.bp.......N...K.........kp............',
+  [[[4, 4], [6, 3]], [[6, 2], [6, 3]], [[3, 1], [2, 1]], [[1, 0], [2, 1]], [[3, 0], [2, 1]]],
+  1747, "Win Material", "Sacrifice", 'White',
+  "From a real game (Lichess, rated 1747). Find the best move.");
+addPLine('.r...b.......p.k...P.qRPr.n.p...ppB.....P..Q.P...PP......K......',
+  [[[2, 6], [1, 6]], [[1, 7], [2, 7]], [[5, 3], [1, 7]]],
+  1773, "Mate in 2", "Mate in 2", 'White',
+  "From a real game (Lichess, rated 1773). Find the best move.");
+addPLine('r......kpp..r..p....Rp.Q...p.............N.P..b.PqP...PP.......K',
+  [[[2, 4], [1, 4]], [[6, 1], [7, 1]], [[5, 1], [7, 2]], [[7, 1], [7, 2]], [[2, 7], [7, 2]]],
+  1810, "Win Material", "Hanging Piece", 'White',
+  "From a real game (Lichess, rated 1810). Find the best move.");
+addPLine('..........pR...ppb....pk.............p.PB......KP.r...........r.',
+  [[[5, 0], [0, 5]], [[2, 7], [3, 7]], [[1, 3], [1, 7]]],
+  1817, "Mate in 2", "Mate in 2", 'White',
+  "From a real game (Lichess, rated 1817). Find the best move.");
+addPLine('..r.....................pNp.r..p....NppP.P.k......R..K..........',
+  [[[6, 2], [6, 3]], [[5, 3], [4, 4]], [[3, 1], [2, 3]]],
+  1829, "Mate in 2", "Mate in 2", 'White',
+  "From a real game (Lichess, rated 1829). Find the best move.");
+addPLine('.Qbk.b.r...r.pp.p.BP...p...........q..........P..PP...PP.K.....R',
+  [[[2, 2], [1, 3]], [[4, 3], [3, 2]], [[1, 3], [0, 2]]],
+  1880, "Win Material", "Pin", 'White',
+  "From a real game (Lichess, rated 1880). Find the best move.");
+addPLine('....r.k.ppqb.p.p..p..Bp....p..............P..Q..PP...PPP....R.K.',
+  [[[7, 4], [0, 4]], [[1, 3], [0, 4]], [[5, 5], [5, 4]], [[1, 2], [2, 3]], [[5, 4], [0, 4]]],
+  1883, "Win Material", "Win Material", 'White',
+  "From a real game (Lichess, rated 1883). Find the best move.");
+addPLine('......k..p....p..p...p.p..r.p.....n.....r...PN....RnNPPP..R...K.',
+  [[[5, 5], [6, 3]], [[4, 2], [6, 3]], [[6, 2], [6, 3]], [[3, 2], [7, 2]], [[6, 4], [7, 2]]],
+  1908, "Win Material", "Win Material", 'White',
+  "From a real game (Lichess, rated 1908). Find the best move.");
+addPLine('r..q..k.p....ppp..p..n.....p..B.......b...NQrN.PPPP..bP...KR...R',
+  [[[3, 6], [5, 4]], [[6, 5], [5, 4]], [[5, 3], [5, 4]]],
+  1910, "Win Material", "Win Material", 'White',
+  "From a real game (Lichess, rated 1910). Find the best move.");
+addPLine('.....rk..r....p.p...pnQp...pN.p.P.pPq.....P..R.P.P....P......R.K',
+  [[[5, 5], [2, 5]], [[0, 5], [2, 5]], [[7, 5], [2, 5]], [[4, 4], [2, 6]], [[2, 5], [2, 6]]],
+  1926, "Win Material", "Pin", 'White',
+  "From a real game (Lichess, rated 1926). Find the best move.");
+addPLine('r....rk....p.p.pp..NpQpq.p.b.......R....P........P...PPP...R..K.',
+  [[[4, 3], [3, 3]], [[2, 7], [1, 6]], [[2, 5], [1, 6]]],
+  1938, "Win Material", "Win Material", 'White',
+  "From a real game (Lichess, rated 1938). Find the best move.");
+addPLine('r...qrk.p......p.p..pbp....p.......Q..n.P......R.B...P...B....KR',
+  [[[4, 3], [4, 6]], [[2, 5], [6, 1]], [[5, 7], [1, 7]]],
+  1949, "Win Material", "Win Material", 'White',
+  "From a real game (Lichess, rated 1949). Find the best move.");
+addPLine('r...k...ppp..p...b.p...p....p..r..B.P.bqP.PP.P...P....PQRN...R.K',
+  [[[4, 2], [1, 5]], [[0, 4], [1, 4]], [[1, 5], [3, 7]]],
+  1981, "Win Material", "Win Material", 'White',
+  "From a real game (Lichess, rated 1981). Find the best move.");
+addPLine('rnb.k..rppp..q.p...b..p....P.pBQ....p..N..N.....PPP..PPPR...R.K.',
+  [[[5, 2], [4, 4]], [[3, 5], [4, 4]], [[7, 4], [4, 4]]],
+  1982, "Win Material", "Win Material", 'White',
+  "From a real game (Lichess, rated 1982). Find the best move.");
+
+// ─── ASSIGN IDs, SORT, SHUFFLE HELPER ─────────────────────────────────────────
+// Load the external real-game puzzle pack (puzzles_data.js) if present.
+if(window.PUZZLE_DATA){ PUZZLE_DATA.forEach(function(d){ addPLine(d[0],d[1],d[2],d[3],d[4],'White','From a real game (Lichess, rated '+d[2]+'). Find the best move.'); }); }
+ALL_PUZZLES.forEach((p,i)=>p.id=i);
+
+function shuffle(arr) {
+  for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}
+  return arr;
+}
+
+// ─── GAME STATE ──────────────────────────────────────────────────────────────
+let SQ = 60;
+let PUZZLES = [];      // active filtered+shuffled list
+let current = 0;
+let selectedSq = null;
+let solved = false;
+let locked = false;
+let attempts = 0;
+let streak = 0;
+let hintUsed = false;
+const solvedIds = new Set();
+
+// Multi-move state: liveBoard updates as the line is played out.
+let liveBoard = '';
+let moveIndex = 0;        // index of the NEXT expected user move within currentLine
+let currentLine = [];     // [[from,to], ...]  even = user, odd = computer reply
+
+// ─── SURVIVAL MODE STATE ─────────────────────────────────────────────────────
+let survivalMode = false;
+let survivalLives = 0;
+let survivalTarget = 500;     // current difficulty (rating) target
+let survivalScore = 0;        // puzzles solved this run
+let survivalUsed = new Set(); // puzzle ids already shown this run
+let survivalAdvancing = false; // guard against double-advance
+let survivalHistory = [];     // [{puz, solved}] for the end-of-run review grid
+const SURV_START = 500;       // starting difficulty
+const SURV_LIVES = 3;
+
+// ─── MOVE GENERATOR (for dots) ───────────────────────────────────────────────
+function getMoves(squares, r, c) {
+  const piece = squares[r*8+c];
+  if(!piece||piece==='.') return [];
+  const isW = piece===piece.toUpperCase();
+  const moves=[];
+  const inB=(nr,nc)=>nr>=0&&nr<8&&nc>=0&&nc<8;
+  const at=(nr,nc)=>squares[nr*8+nc];
+  const enemy=p=>p!=='.'&&(isW?p===p.toLowerCase():p===p.toUpperCase());
+  const ok=(nr,nc)=>inB(nr,nc)&&(at(nr,nc)==='.'||enemy(at(nr,nc)));
+  const slide=(dr,dc)=>{let nr=r+dr,nc=c+dc;while(inB(nr,nc)){if(at(nr,nc)!=='.'){if(enemy(at(nr,nc)))moves.push([nr,nc]);break;}moves.push([nr,nc]);nr+=dr;nc+=dc;}};
+  const t=piece.toUpperCase();
+  if(t==='P'){const d=isW?-1:1,sr=isW?6:1;if(inB(r+d,c)&&at(r+d,c)==='.'){moves.push([r+d,c]);if(r===sr&&at(r+2*d,c)==='.')moves.push([r+2*d,c]);}for(const dc of[-1,1])if(inB(r+d,c+dc)&&enemy(at(r+d,c+dc)))moves.push([r+d,c+dc]);}
+  else if(t==='N'){for(const[dr,dc]of[[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]])if(ok(r+dr,c+dc))moves.push([r+dr,c+dc]);}
+  else if(t==='B'){for(const d of[[-1,-1],[-1,1],[1,-1],[1,1]])slide(...d);}
+  else if(t==='R'){for(const d of[[-1,0],[1,0],[0,-1],[0,1]])slide(...d);}
+  else if(t==='Q'){for(const d of[[-1,-1],[-1,1],[1,-1],[1,1],[-1,0],[1,0],[0,-1],[0,1]])slide(...d);}
+  else if(t==='K'){for(const[dr,dc]of[[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]])if(ok(r+dr,c+dc))moves.push([r+dr,c+dc]);}
+  return moves;
+}
+
+// ─── RENDER ──────────────────────────────────────────────────────────────────
+function renderBoard(squares, extra={}) {
+  const boardEl = document.getElementById('board');
+  boardEl.innerHTML = '';
+  const legal = selectedSq ? getMoves(squares, selectedSq[0], selectedSq[1]) : [];
+  for(let r=0;r<8;r++){for(let c=0;c<8;c++){
+    const sq=document.createElement('div');
+    sq.className='sq '+((r+c)%2===0?'light':'dark');
+    if(extra.from&&r===extra.from[0]&&c===extra.from[1]) sq.classList.add('moved-from');
+    if(extra.to&&r===extra.to[0]&&c===extra.to[1]) sq.classList.add('moved-to');
+    if(selectedSq&&r===selectedSq[0]&&c===selectedSq[1]) sq.classList.add('selected');
+    if(extra.hint&&r===extra.hint[0]&&c===extra.hint[1]) sq.classList.add('hint-sq');
+    if(legal.some(([lr,lc])=>lr===r&&lc===c)){sq.classList.add('legal');if(squares[r*8+c]!=='.')sq.classList.add('has-piece');}
+    const p=squares[r*8+c];
+    if(p&&p!=='.'&&PIECE_IMGS[p]){const img=document.createElement('img');img.src=PIECE_IMGS[p];img.draggable=false;sq.appendChild(img);}
+    sq.addEventListener('click',()=>handleClick(r,c));
+    boardEl.appendChild(sq);
+  }}
+  document.getElementById('fileLabels').innerHTML=['a','b','c','d','e','f','g','h'].map(f=>`<span>${f}</span>`).join('');
+  document.getElementById('rankLabels').innerHTML=['8','7','6','5','4','3','2','1'].map(r=>`<span>${r}</span>`).join('');
+}
+
+// ─── ANIMATIONS ──────────────────────────────────────────────────────────────
+function makeFly(piece, x, y) {
+  const fly=document.createElement('div');
+  fly.style.cssText=`position:fixed;left:${x}px;top:${y}px;width:${SQ}px;height:${SQ}px;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:1000;will-change:transform;transition:transform 0.15s cubic-bezier(.25,.8,.25,1)`;
+  const img=document.createElement('img');img.src=PIECE_IMGS[piece]||'';
+  img.style.cssText='width:88%;height:88%;object-fit:contain;display:block;';
+  fly.appendChild(img);document.body.appendChild(fly);return fly;
+}
+function animatePiece(fr,fc,tr,tc,piece,onDone) {
+  const bel=document.getElementById('board');
+  const rect=bel.getBoundingClientRect();
+  const src=bel.querySelectorAll('.sq')[fr*8+fc];
+  if(src){const im=src.querySelector('img');if(im)im.style.opacity='0';}
+  const fly=makeFly(piece,rect.left+fc*SQ+3,rect.top+fr*SQ+3);
+  const dx=(tc-fc)*SQ,dy=(tr-fr)*SQ;
+  let done=false;
+  const finish=()=>{if(done)return;done=true;fly.remove();onDone();};
+  fly.getBoundingClientRect();fly.style.transform=`translate(${dx}px,${dy}px)`;
+  fly.addEventListener('transitionend',finish,{once:true});setTimeout(finish,280);
+}
+function animateWrong(fr,fc,tr,tc,piece,onDone) {
+  const bel=document.getElementById('board');
+  const rect=bel.getBoundingClientRect();
+  const src=bel.querySelectorAll('.sq')[fr*8+fc];
+  if(src){const im=src.querySelector('img');if(im)im.style.opacity='0';}
+  const fly=makeFly(piece,rect.left+fc*SQ+3,rect.top+fr*SQ+3);
+  const dx=(tc-fc)*SQ,dy=(tr-fr)*SQ;
+  let done=false;
+  const finish=()=>{if(done)return;done=true;fly.remove();onDone();};
+  fly.getBoundingClientRect();fly.style.transform=`translate(${dx}px,${dy}px)`;
+  fly.addEventListener('transitionend',()=>{
+    if(done)return;
+    const xb=document.createElement('div');xb.className='x-badge';xb.textContent='✕';fly.appendChild(xb);
+    setTimeout(()=>{
+      if(done)return;
+      fly.style.transition='transform 0.18s cubic-bezier(.25,.8,.25,1)';
+      fly.style.transform='translate(0,0)';
+      fly.addEventListener('transitionend',finish,{once:true});setTimeout(finish,350);
+    },500);
+  },{once:true});
+  setTimeout(finish,1600);
+}
+
+// ─── CLICK HANDLER ───────────────────────────────────────────────────────────
+function handleClick(r,c) {
+  if(solved||locked) return;
+  const puz=PUZZLES[current];
+  const sq=liveBoard;
+  const piece=sq[r*8+c];
+  const isMovers=puz.toMove==='White';
+  const myPiece=piece&&piece!=='.'&&(isMovers?piece===piece.toUpperCase():piece===piece.toLowerCase());
+
+  if(!selectedSq){
+    if(myPiece){selectedSq=[r,c];renderBoard(sq);setStatus(`${piece.toUpperCase()} selected.`,'');sndMove();}
+    return;
+  }
+  const[sr,sc]=selectedSq;
+  if(sr===r&&sc===c){selectedSq=null;renderBoard(sq);setStatus(`Find the best move for ${puz.toMove}.`,'');return;}
+  if(myPiece){selectedSq=[r,c];renderBoard(sq);setStatus(`${piece.toUpperCase()} selected.`,'');return;}
+
+  // Only allow the selected piece to move to squares it can actually reach.
+  const reachable=getMoves(sq,sr,sc).some(([lr,lc])=>lr===r&&lc===c);
+  if(!reachable){ setStatus(`That piece can't move there. Find the best move for ${puz.toMove}.`,''); return; }
+
+  const exp=currentLine[moveIndex];
+  const matchesScripted=sr===exp[0][0]&&sc===exp[0][1]&&r===exp[1][0]&&c===exp[1][1];
+  if(matchesScripted){ sndMove(); playCorrectMove(); }
+  else if(moveLegalAndMates(liveBoard,[sr,sc],[r,c],isMovers)){ sndMove(); playFinalAlt(sr,sc,r,c); }  // any legal checkmate is accepted
+  else if(survivalMode){ sndWrong(); survivalOnWrong(r,c); }   // one mistake = lose a life
+  else { sndWrong(); handleWrong(r,c); }
+}
+
+// ── Accept ANY move that delivers a legal checkmate (so an alternate mate isn't marked wrong) ──
+function _isW(p){return p!=='.'&&p===p.toUpperCase();}
+function _attsq(b,r,c){
+  const p=b[r*8+c]; if(p==='.')return[];
+  const t=p.toUpperCase(),w=_isW(p),out=[],inB=(a,d)=>a>=0&&a<8&&d>=0&&d<8,at=(a,d)=>b[a*8+d];
+  const sl=(dr,dc)=>{let nr=r+dr,nc=c+dc;while(inB(nr,nc)){out.push([nr,nc]);if(at(nr,nc)!=='.')break;nr+=dr;nc+=dc;}};
+  if(t==='P'){const d=w?-1:1;for(const dc of[-1,1])if(inB(r+d,c+dc))out.push([r+d,c+dc]);}
+  else if(t==='N'){for(const[dr,dc]of[[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]])if(inB(r+dr,c+dc))out.push([r+dr,c+dc]);}
+  else if(t==='B'){for(const d of[[-1,-1],[-1,1],[1,-1],[1,1]])sl(...d);}
+  else if(t==='R'){for(const d of[[-1,0],[1,0],[0,-1],[0,1]])sl(...d);}
+  else if(t==='Q'){for(const d of[[-1,-1],[-1,1],[1,-1],[1,1],[-1,0],[1,0],[0,-1],[0,1]])sl(...d);}
+  else if(t==='K'){for(const[dr,dc]of[[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]])if(inB(r+dr,c+dc))out.push([r+dr,c+dc]);}
+  return out;
+}
+function _att(b,r,c,byW){for(let i=0;i<64;i++){const p=b[i];if(p==='.'||_isW(p)!==byW)continue;if(_attsq(b,(i/8)|0,i%8).some(([x,y])=>x===r&&y===c))return true;}return false;}
+function _kp(b,w){const i=b.indexOf(w?'K':'k');return[(i/8)|0,i%8];}
+function _chk(b,w){const[kr,kc]=_kp(b,w);return _att(b,kr,kc,!w);}
+function _pseudo(b,r,c){const p=b[r*8+c],t=p.toUpperCase(),w=_isW(p),res=[],inB=(a,d)=>a>=0&&a<8&&d>=0&&d<8;
+  if(t==='P'){const d=w?-1:1,sr=w?6:1;if(inB(r+d,c)&&b[(r+d)*8+c]==='.'){res.push([r+d,c]);if(r===sr&&b[(r+2*d)*8+c]==='.')res.push([r+2*d,c]);}for(const dc of[-1,1]){const nr=r+d,nc=c+dc;if(inB(nr,nc)){const q=b[nr*8+nc];if(q!=='.'&&_isW(q)!==w)res.push([nr,nc]);}}return res;}
+  for(const[x,y]of _attsq(b,r,c)){const q=b[x*8+y];if(q==='.'||_isW(q)!==w)res.push([x,y]);}return res;
+}
+function _hasLegal(b,w){for(let i=0;i<64;i++){const p=b[i];if(p==='.'||_isW(p)!==w)continue;const r=(i/8)|0,c=i%8;for(const[x,y]of _pseudo(b,r,c)){if(!_chk(applyMv(b,[r,c],[x,y]),w))return true;}}return false;}
+function moveLegalAndMates(b,from,to,moverWhite){const nb=applyMv(b,from,to);if(_chk(nb,moverWhite))return false;const opp=!moverWhite;return _chk(nb,opp)&&!_hasLegal(nb,opp);}
+function playFinalAlt(fr,fc,tr,tc){
+  selectedSq=null; locked=true;
+  const piece=liveBoard[fr*8+fc];
+  renderBoard(liveBoard);
+  animatePiece(fr,fc,tr,tc,piece,()=>{
+    liveBoard=applyMv(liveBoard,[fr,fc],[tr,tc]);
+    renderBoard(liveBoard,{from:[fr,fc],to:[tr,tc]});
+    moveIndex=currentLine.length;
+    finishSolved([tr,tc]);
+  });
+}
+
+function applyMv(board, from, to){
+  const b=[...board];
+  b[to[0]*8+to[1]]=b[from[0]*8+from[1]];
+  b[from[0]*8+from[1]]='.';
+  return b.join('');
+}
+
+// Animate the user's correct move, then auto-play the computer's forced reply.
+function playCorrectMove() {
+  const exp=currentLine[moveIndex];
+  const [fr,fc]=exp[0], [tr,tc]=exp[1];
+  const piece=liveBoard[fr*8+fc];
+  selectedSq=null; locked=true;
+  renderBoard(liveBoard);
+  animatePiece(fr,fc,tr,tc,piece,()=>{
+    liveBoard=applyMv(liveBoard,exp[0],exp[1]);
+    renderBoard(liveBoard,{from:exp[0],to:exp[1]});
+    moveIndex++;
+    if(moveIndex>=currentLine.length){ finishSolved(exp[1]); return; }
+    // computer's forced reply
+    setStatus('Good move! The opponent replies…','correct');
+    setTimeout(()=>{
+      const opp=currentLine[moveIndex];
+      const op=liveBoard[opp[0][0]*8+opp[0][1]];
+      renderBoard(liveBoard);
+      animatePiece(opp[0][0],opp[0][1],opp[1][0],opp[1][1],op,()=>{
+        liveBoard=applyMv(liveBoard,opp[0],opp[1]);
+        renderBoard(liveBoard,{from:opp[0],to:opp[1]});
+        moveIndex++; locked=false;
+        const left=Math.ceil((currentLine.length-moveIndex)/2);
+        setStatus(left>1 ? `Your move — ${left} moves to go.` : 'Your move — finish it!','');
+      });
+    },650);
+  });
+}
+
+function finishSolved(lastTo) {
+  solved=true; locked=false; streak++; hintUsed=false;
+  solvedIds.add(PUZZLES[current].id);
+  const dest=document.querySelectorAll('#board .sq')[lastTo[0]*8+lastTo[1]];
+  if(dest){const b=document.createElement('div');b.className='check-badge';b.textContent='✓';dest.appendChild(b);setTimeout(()=>{b.style.transition='opacity 0.25s';b.style.opacity='0';setTimeout(()=>b.remove(),250);},1400);}
+  sndCorrect();
+  setStatus(survivalMode?'✓ Solved! Next one is harder…':'✓ Solved — checkmate!','correct');
+  updateStreak();
+  updatePuzzleListItem(current);
+  document.getElementById('attemptCounter').textContent='';
+  if(survivalMode) survivalOnSolve();
+}
+
+function handleWrong(tr,tc) {
+  attempts++;locked=true;
+  const[fr,fc]=selectedSq;
+  const sq=liveBoard;
+  const piece=sq[fr*8+fc];
+  const msgs=['✗ Not the right move — try again!','✗ Wrong again. Keep looking!','✗ Still not it. Think deeper...'];
+  setStatus(msgs[Math.min(attempts-1,2)],'wrong');
+  document.getElementById('attemptCounter').textContent=`${attempts} wrong attempt${attempts>1?'s':''}`;
+  streak=0;updateStreak();
+  renderBoard(sq);
+  animateWrong(fr,fc,tr,tc,piece,()=>{
+    selectedSq=null;locked=false;
+    renderBoard(sq);
+    setStatus(`Find the best move for ${PUZZLES[current].toMove}.`,'');
+  });
+}
+
+function showHint() {
+  if(solved) return;
+  hintUsed=true;
+  const[fr,fc]=currentLine[moveIndex][0];
+  selectedSq=[fr,fc];
+  renderBoard(liveBoard,{hint:[fr,fc]});
+  setStatus('Hint: the piece to move is highlighted!','');
+}
+
+function revealSolution() {
+  if(solved) return;
+  solved=true; locked=true; selectedSq=null;
+  let i=moveIndex;
+  const step=()=>{
+    if(i>=currentLine.length){ locked=false; setStatus('Solution shown — study the line!','correct'); return; }
+    const mv=currentLine[i];
+    const piece=liveBoard[mv[0][0]*8+mv[0][1]];
+    renderBoard(liveBoard);
+    animatePiece(mv[0][0],mv[0][1],mv[1][0],mv[1][1],piece,()=>{
+      liveBoard=applyMv(liveBoard,mv[0],mv[1]);
+      renderBoard(liveBoard,{from:mv[0],to:mv[1]});
+      i++; setTimeout(step,500);
+    });
+  };
+  step();
+}
+
+// ─── LOAD PUZZLE ─────────────────────────────────────────────────────────────
+function loadPuzzle(idx) {
+  current=idx; selectedSq=null; solved=false; locked=false; attempts=0; hintUsed=false;
+  annotations=[]; rightDragStart=null; previewTarget=null;
+  const puz=PUZZLES[idx];
+  liveBoard=puz.board;
+  moveIndex=0;
+  currentLine=(puz.solution && puz.solution.line) ? puz.solution.line : [[puz.solution.from, puz.solution.to]];
+  document.getElementById('ratingBadge').textContent=`⭐ ${puz.rating}`;
+  document.getElementById('ratingBadge').style.color = ratingColor(puz.rating);
+  document.getElementById('toMove').innerHTML=`<strong>${puz.toMove}</strong> to move`;
+  document.getElementById('attemptCounter').textContent='';
+  setStatus(`Find the best move for ${puz.toMove}.`,'');
+  renderBoard(liveBoard);
+  updateProgress();
+  const nl=document.getElementById('navLabel');
+  if(nl) nl.textContent=`${current+1} / ${PUZZLES.length}`;
+  document.querySelectorAll('.puzzle-btn').forEach((b,i)=>{b.classList.toggle('active',i===idx);});
+  const activeBtn=document.querySelectorAll('.puzzle-btn')[idx];
+  if(activeBtn) activeBtn.scrollIntoView({block:'nearest'});
+}
+
+function ratingColor(r) {
+  if(r<600) return '#81b64c';
+  if(r<900) return '#7bc8a4';
+  if(r<1200) return '#e8b84b';
+  if(r<1600) return '#e07c54';
+  return '#e05555';
+}
+
+function nextPuzzle() { if(survivalMode) return; loadPuzzle((current+1)%PUZZLES.length); }
+function prevPuzzle() { if(survivalMode) return; loadPuzzle((current-1+PUZZLES.length)%PUZZLES.length); }
+
+// ─── SURVIVAL MODE ───────────────────────────────────────────────────────────
+function survBest(){ try { return parseInt(localStorage.getItem('puzzleSurvivalBest')||'0')||0; } catch(e){ return 0; } }
+function survSetBest(v){ try { localStorage.setItem('puzzleSurvivalBest', String(v)); } catch(e){} }
+
+function startSurvival() {
+  survivalMode = true;
+  survivalLives = SURV_LIVES;
+  survivalTarget = SURV_START;
+  survivalScore = 0;
+  survivalUsed = new Set();
+  survivalAdvancing = false;
+  survivalHistory = [];
+  document.getElementById('survOver').style.display='none';
+  document.getElementById('survivalPanel').style.display='block';
+  // hide normal-mode controls
+  document.getElementById('controlsCard').style.display='none';
+  document.getElementById('puzzleListCard').style.display='none';
+  document.getElementById('solveBtns').style.display='none';
+  document.getElementById('nextBtn').style.display='none';
+  document.getElementById('reviewBackBtn').style.display='none';
+  document.getElementById('survBest').textContent = survBest();
+  updateSurvivalHUD();
+  survivalNext();
+}
+
+function exitSurvival() {
+  survivalMode = false;
+  document.getElementById('survOver').style.display='none';
+  document.getElementById('survivalPanel').style.display='none';
+  document.getElementById('controlsCard').style.display='';
+  document.getElementById('solveBtns').style.display='';
+  document.getElementById('nextBtn').style.display='';
+  document.getElementById('reviewBackBtn').style.display='none';
+  // restore the normal filtered library
+  applyFilter();
+}
+
+function updateSurvivalHUD() {
+  let hearts=''; for(let i=0;i<SURV_LIVES;i++) hearts += (i<survivalLives?'❤️':'🖤')+' ';
+  document.getElementById('survLives').textContent = hearts.trim();
+  document.getElementById('survScore').textContent = survivalScore;
+  document.getElementById('survRating').textContent = survivalTarget;
+}
+
+// pick an unused puzzle whose rating is closest to the current target difficulty
+function survivalPick() {
+  const pool = ALL_PUZZLES.filter(p=>!survivalUsed.has(p.id));
+  if(!pool.length) return null;
+  let w = 45, cands = [];
+  while(cands.length===0 && w < 4000){ cands = pool.filter(p=>Math.abs(p.rating-survivalTarget)<=w); w += 50; }
+  if(!cands.length) cands = pool;
+  cands.sort((a,b)=>Math.abs(a.rating-survivalTarget)-Math.abs(b.rating-survivalTarget));
+  const top = cands.slice(0, Math.min(6, cands.length));
+  return top[Math.floor(Math.random()*top.length)];
+}
+
+function survivalNext() {
+  survivalAdvancing = false;
+  const puz = survivalPick();
+  if(!puz){ survivalGameOver(true); return; }  // ran out of puzzles -> treat as a win
+  survivalUsed.add(puz.id);
+  PUZZLES = [puz];
+  updateSurvivalHUD();
+  loadPuzzle(0);
+}
+
+function survivalOnSolve() {
+  if(survivalAdvancing) return;
+  survivalAdvancing = true;
+  survivalHistory.push({puz:PUZZLES[0], solved:true});
+  survivalScore++;
+  survivalTarget += 35 + Math.floor(Math.random()*11); // +35..45
+  if(survivalScore > survBest()) { survSetBest(survivalScore); document.getElementById('survBest').textContent = survivalScore; }
+  updateSurvivalHUD();
+  setTimeout(survivalNext, 1100);
+}
+
+function survivalOnWrong(tr,tc) {
+  if(survivalAdvancing) return;
+  survivalAdvancing = true;
+  survivalHistory.push({puz:PUZZLES[0], solved:false});
+  locked = true;
+  const [fr,fc] = selectedSq;
+  const piece = liveBoard[fr*8+fc];
+  survivalLives--;
+  survivalTarget += 35 + Math.floor(Math.random()*11); // difficulty still rises
+  updateSurvivalHUD();
+  renderBoard(liveBoard);
+  animateWrong(fr,fc,tr,tc,piece,()=>{
+    selectedSq=null;
+    if(survivalLives<=0){ survivalGameOver(false); return; }
+    setStatus(`✗ Wrong — life lost! ${survivalLives} left. Skipping…`,'wrong');
+    setTimeout(survivalNext, 900);
+  });
+  setStatus(`✗ Wrong — life lost! ${survivalLives} left.`,'wrong');
+}
+
+function survivalGameOver(ranOut) {
+  solved = true; locked = true;
+  if(survivalScore > survBest()) survSetBest(survivalScore);
+  document.getElementById('survOverScore').textContent = survivalScore;
+  // build the review grid: a tile per attempted puzzle (✓ solved / ✗ failed) with its rating
+  const grid = document.getElementById('survGrid');
+  grid.innerHTML = '';
+  survivalHistory.forEach((h,i)=>{
+    const t = document.createElement('div');
+    t.className = 'surv-tile '+(h.solved?'ok':'bad');
+    t.title = 'Click to review (rating '+h.puz.rating+')';
+    t.innerHTML = `<div class="surv-mark ${h.solved?'ok':'bad'}">${h.solved?'✓':'✕'}</div><div class="r">${h.puz.rating}</div>`;
+    t.onclick = ()=>reviewSurvivalPuzzle(i);
+    grid.appendChild(t);
+  });
+  document.getElementById('survOverMsg').textContent = ranOut
+    ? `You cleared every puzzle we had! Click any puzzle below to review it.`
+    : `Best: ${survBest()}. Click any puzzle to review it.`;
+  document.getElementById('survOver').style.display='flex';
+}
+
+// Review a puzzle from the end-of-run grid (free play; survival is paused).
+function reviewSurvivalPuzzle(i) {
+  const h = survivalHistory[i];
+  if(!h) return;
+  survivalMode = false;
+  document.getElementById('survOver').style.display='none';
+  document.getElementById('survivalPanel').style.display='none';
+  document.getElementById('solveBtns').style.display='';
+  document.getElementById('nextBtn').style.display='none';
+  document.getElementById('reviewBackBtn').style.display='';
+  PUZZLES = [h.puz];
+  loadPuzzle(0);
+  setStatus(`Review (rated ${h.puz.rating}) — ${h.solved?'you solved this':'you missed this'}. Try it again!`,'');
+}
+
+function showSurvivalResults() {
+  document.getElementById('reviewBackBtn').style.display='none';
+  document.getElementById('solveBtns').style.display='none';
+  document.getElementById('survOver').style.display='flex';
+}
+
+function setStatus(msg,cls) {
+  const bar=document.getElementById('statusBar');
+  bar.textContent=msg; bar.className='status-bar'+(cls?' '+cls:'');
+}
+
+function updateProgress() {
+  const solved2=PUZZLES.filter(p=>solvedIds.has(p.id)).length;
+  document.getElementById('progressText').textContent=`${solved2} / ${PUZZLES.length} solved`;
+}
+
+function updateStreak() {
+  const el=document.getElementById('streakText');
+  el.textContent=streak>=2?`🔥 ${streak} streak`:'';
+}
+
+function updatePuzzleListItem(idx) {
+  const btns=document.querySelectorAll('.puzzle-btn');
+  if(btns[idx]) btns[idx].classList.add('solved');
+}
+
+// ─── PUZZLE LIST ─────────────────────────────────────────────────────────────
+function buildList() {
+  const list=document.getElementById('puzzleList');
+  list.innerHTML='';
+  PUZZLES.forEach((puz,i)=>{
+    const btn=document.createElement('button');
+    btn.className='puzzle-btn'+(solvedIds.has(puz.id)?' solved':'')+(puz.isSaved?' saved-puzzle':'');
+    let inner=`<span class="pn">${puz.theme}</span><span class="pr">${puz.rating}</span>`;
+    if(puz.isSaved){
+      inner+=`<span class="del-saved" title="Delete saved puzzle" data-sid="${puz.savedId}">✕</span>`;
+    }
+    btn.innerHTML=inner;
+    btn.onclick=(e)=>{
+      if(e.target.classList.contains('del-saved')){ e.stopPropagation(); deleteSavedPuzzle(puz.savedId); return; }
+      loadPuzzle(i);
+    };
+    list.appendChild(btn);
+  });
+  document.getElementById('listHeader').textContent=`${PUZZLES.length} Puzzles`;
+}
+
+// ─── FILTER / SHUFFLE ────────────────────────────────────────────────────────
+let minRating = 400;
+let maxRating = 3200;
+
+function onFilterChange() {
+  let lo=parseInt(document.getElementById('ratingFilterMin').value);
+  let hi=parseInt(document.getElementById('ratingFilter').value);
+  // keep min ≤ max
+  if(lo>hi){ let t=lo; lo=hi; hi=t; }
+  minRating=lo; maxRating=hi;
+  document.getElementById('filterLabel').textContent =
+    (lo<=400 && hi>=3200) ? 'All' : `${lo} – ${hi}`;
+  applyFilter();
+}
+
+function applyFilter() {
+  PUZZLES=ALL_PUZZLES.filter(p=>p.rating>=minRating && p.rating<=maxRating);
+  shuffle(PUZZLES);
+  buildList();
+  loadPuzzle(0);
+}
+
+function shuffleAndRestart() {
+  shuffle(PUZZLES);
+  buildList();
+  loadPuzzle(0);
+}
+
+// ─── RESIZE ──────────────────────────────────────────────────────────────────
+function resizeBoard() {
+  const NAV=56, SIDEBAR=300, PAD=40, BARS=30;
+  const availH=window.innerHeight-NAV-PAD-BARS;
+  const availW=window.innerWidth-SIDEBAR-PAD;
+  SQ=Math.max(40,Math.floor(Math.min(availH,availW)/8));
+  document.documentElement.style.setProperty('--sq',SQ+'px');
+  drawAnnotations();
+}
+window.addEventListener('resize',resizeBoard);
+window.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight') nextPuzzle();
+  else if(e.key==='ArrowLeft') prevPuzzle();
+});
+
+// ─── ARROW ANNOTATIONS ───────────────────────────────────────────────────────
+let annotations = [];    // {type:'arrow'|'sq', from:[r,c], to:[r,c]}
+let rightDragStart = null;
+let previewTarget = null;
+
+function sqCenter(r, c) {
+  return { x: c * SQ + SQ / 2, y: r * SQ + SQ / 2 };
+}
+
+function drawAnnotations() {
+  const svg = document.getElementById('arrowLayer');
+  if (!svg) return;
+  svg.setAttribute('width', SQ * 8);
+  svg.setAttribute('height', SQ * 8);
+  // Remove everything except <defs>
+  [...svg.children].forEach(el => { if (el.tagName !== 'defs') el.remove(); });
+
+  // Square highlights
+  annotations.filter(a => a.type === 'sq').forEach(a => {
+    const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    rect.setAttribute('x', a.from[1] * SQ);
+    rect.setAttribute('y', a.from[0] * SQ);
+    rect.setAttribute('width', SQ);
+    rect.setAttribute('height', SQ);
+    rect.setAttribute('fill', 'rgba(235,97,80,0.5)');
+    svg.appendChild(rect);
+  });
+
+  // Committed arrows
+  annotations.filter(a => a.type === 'arrow').forEach(a => drawArrow(svg, a.from, a.to, false));
+
+  // Preview arrow while dragging
+  if (rightDragStart && previewTarget &&
+      (rightDragStart[0] !== previewTarget[0] || rightDragStart[1] !== previewTarget[1])) {
+    drawArrow(svg, rightDragStart, previewTarget, true);
+  }
+}
+
+function drawArrow(svg, from, to, preview) {
+  const f = sqCenter(from[0], from[1]);
+  const t = sqCenter(to[0], to[1]);
+  const dx = t.x - f.x, dy = t.y - f.y;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  if (len < 1) return;
+  const ux = dx / len, uy = dy / len;
+  // Shorten endpoints so arrow fits inside squares
+  const pad = SQ * 0.18;
+  const sx = f.x + ux * pad, sy = f.y + uy * pad;
+  const ex = t.x - ux * (SQ * 0.32), ey = t.y - uy * (SQ * 0.32);
+
+  const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  line.setAttribute('x1', sx); line.setAttribute('y1', sy);
+  line.setAttribute('x2', ex); line.setAttribute('y2', ey);
+  line.setAttribute('stroke', preview ? 'rgba(235,97,80,0.55)' : 'rgba(235,97,80,0.9)');
+  line.setAttribute('stroke-width', SQ * 0.16);
+  line.setAttribute('stroke-linecap', 'round');
+  line.setAttribute('marker-end', preview ? 'url(#ah-pre)' : 'url(#ah)');
+  svg.appendChild(line);
+}
+
+function annotationSqFromEvent(e) {
+  const bel = document.getElementById('board');
+  if (!bel) return null;
+  const rect = bel.getBoundingClientRect();
+  const c = Math.floor((e.clientX - rect.left) / SQ);
+  const r = Math.floor((e.clientY - rect.top) / SQ);
+  if (r >= 0 && r < 8 && c >= 0 && c < 8) return [r, c];
+  return null;
+}
+
+function clearAnnotations() { annotations = []; rightDragStart = null; previewTarget = null; drawAnnotations(); }
+
+function initAnnotations() {
+  const bel = document.getElementById('board');
+  if (!bel) return;
+
+  bel.addEventListener('contextmenu', e => e.preventDefault());
+
+  bel.addEventListener('mousedown', e => {
+    if (e.button === 2) {
+      rightDragStart = annotationSqFromEvent(e);
+      previewTarget = rightDragStart ? [...rightDragStart] : null;
+      e.preventDefault();
+    } else if (e.button === 0) {
+      clearAnnotations();
+    }
+  });
+
+  bel.addEventListener('mousemove', e => {
+    if (rightDragStart && (e.buttons & 2)) {
+      previewTarget = annotationSqFromEvent(e);
+      drawAnnotations();
+    }
+  });
+
+  window.addEventListener('mouseup', e => {
+    if (e.button === 2 && rightDragStart) {
+      const sq = annotationSqFromEvent(e);
+      if (sq) {
+        const same = rightDragStart[0] === sq[0] && rightDragStart[1] === sq[1];
+        if (same) {
+          const key = sq[0]+','+sq[1];
+          const idx = annotations.findIndex(a => a.type==='sq' && a.from[0]===sq[0] && a.from[1]===sq[1]);
+          if (idx >= 0) annotations.splice(idx, 1);
+          else annotations.push({ type:'sq', from: sq });
+        } else {
+          const idx = annotations.findIndex(a => a.type==='arrow' &&
+            a.from[0]===rightDragStart[0] && a.from[1]===rightDragStart[1] &&
+            a.to[0]===sq[0] && a.to[1]===sq[1]);
+          if (idx >= 0) annotations.splice(idx, 1);
+          else annotations.push({ type:'arrow', from: [...rightDragStart], to: sq });
+        }
+      }
+      rightDragStart = null; previewTarget = null;
+      drawAnnotations();
+      e.preventDefault();
+    }
+  });
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+resizeBoard();
+PUZZLES=[...ALL_PUZZLES];
+shuffle(PUZZLES);
+buildList();
+loadPuzzle(0);
+initAnnotations();
+
+// ─── SAVED PUZZLES (from the user's account) ───────────────────────────────────
+// Convert a FEN's piece-placement field into this page's 64-char board string
+// (index 0 = a8 … 63 = h1; uppercase = White, '.' = empty).
+function fenToBoardStr(fen){
+  const rows = fen.split(' ')[0].split('/');
+  let out = '';
+  for(const row of rows){
+    for(const ch of row){
+      if(/\d/.test(ch)) out += '.'.repeat(parseInt(ch,10));
+      else out += ch;
+    }
+  }
+  return out.length===64 ? out : (out+'................................................................').slice(0,64);
+}
+// UCI 'e2e4' -> [[fromR,fromC],[toR,toC]]  (r=0 is rank 8)
+function uciToRC(uci){
+  const fc=uci.charCodeAt(0)-97, fr=8-parseInt(uci[1],10);
+  const tc=uci.charCodeAt(2)-97, tr=8-parseInt(uci[3],10);
+  return [[fr,fc],[tr,tc]];
+}
+// Whose turn from FEN ('w'/'b')
+function fenSide(fen){ return fen.split(' ')[1]==='b' ? 'Black' : 'White'; }
+
+async function loadSavedPuzzles(){
+  if(!window.ChessAuth || !ChessAuth.configured) return;
+  const user = await ChessAuth.getUser();
+  if(!user) return;
+  const res = await ChessAuth.listPuzzles();
+  if(!res || res.error || !res.data || !res.data.length) return;
+
+  res.data.forEach(row=>{
+    let sol;
+    try { sol = typeof row.solution==='string' ? JSON.parse(row.solution) : row.solution; }
+    catch(e){ sol = null; }
+    if(!Array.isArray(sol) || !sol.length) return;
+    const board = fenToBoardStr(row.fen);
+    const line  = sol.map(uciToRC);
+    ALL_PUZZLES.push({
+      id: 'saved-'+row.id,
+      savedId: row.id,
+      isSaved: true,
+      board,
+      solution: { line, from: line[0][0], to: line[0][1] },
+      rating: row.rating || 1500,
+      theme: '★ Saved',
+      title: row.title || 'Saved puzzle',
+      toMove: row.to_move || fenSide(row.fen),
+      desc: (row.title || 'Your saved puzzle') + '. Find the best move!'
+    });
+  });
+
+  // Refresh the active list to include the newly added saved puzzles.
+  applyFilter();
+}
+
+async function deleteSavedPuzzle(savedId){
+  if(!confirm('Delete this saved puzzle?')) return;
+  const res = await ChessAuth.deletePuzzle(savedId);
+  if(res && res.error){ alert('Could not delete: '+res.error.message); return; }
+  // Remove from local arrays and rebuild.
+  for(let i=ALL_PUZZLES.length-1;i>=0;i--) if(ALL_PUZZLES[i].savedId===savedId) ALL_PUZZLES.splice(i,1);
+  applyFilter();
+}
+
+// Load saved puzzles once auth state is known. auth.js loads after this inline
+// block, so wait for full page load before touching window.ChessAuth.
+window.addEventListener('load', function(){
+  if(window.ChessAuth){
+    ChessAuth.getUser().then(u=>{ if(u) loadSavedPuzzles(); });
+    ChessAuth.onChange(u=>{ if(u) loadSavedPuzzles(); });
+  }
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script src="auth.js"></script>
+</body>
+</html>

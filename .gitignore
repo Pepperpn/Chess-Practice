@@ -1,0 +1,13 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Setup-only files — no need to publish these
+SETUP_SUPABASE.md
+supabase_setup.sql
+Start Chess Website.bat
+
+# OS / editor
+.DS_Store
+Thumbs.db

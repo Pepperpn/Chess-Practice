@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Openings – ChessPractice</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #1a1a1a; --surface: #262626; --surface2: #2e2e2e;
+      --border: #3a3a3a; --green: #81b64c; --text: #e0e0e0; --text-muted: #999;
+      --light-sq: #eeeed2; --dark-sq: #769656;
+    }
+    body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 2rem; display: flex; align-items: center; height: 56px; gap: 2rem; }
+    .nav-logo { font-size: 1.4rem; font-weight: 700; color: var(--green); text-decoration: none; display: flex; align-items: center; gap: 0.5rem; }
+    .nav-logo span { color: var(--text); }
+    .nav-links { display: flex; gap: 0.25rem; }
+    .nav-links a { color: var(--text-muted); text-decoration: none; padding: 0.4rem 0.85rem; border-radius: 6px; font-size: 0.95rem; transition: background 0.15s, color 0.15s; }
+    .nav-links a:hover, .nav-links a.active { background: var(--surface2); color: var(--text); }
+    .nav-login { margin-left: auto; background: var(--green); color: #1a1a1a; font-weight: 600; text-decoration: none; padding: 0.4rem 1.1rem; border-radius: 6px; font-size: 0.9rem; transition: background 0.15s; }
+    .nav-login:hover { background: var(--green-dark); }
+
+    .page-header { max-width: 1200px; margin: 0 auto; padding: 2.5rem 2rem 1.5rem; }
+    .page-header h1 { font-size: 2rem; font-weight: 800; margin-bottom: 0.4rem; }
+    .page-header p { color: var(--text-muted); font-size: 1rem; }
+
+    .columns { max-width: 1200px; margin: 0 auto; padding: 0 2rem 3rem; display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+    @media (max-width: 900px) { .columns { grid-template-columns: 1fr; } }
+
+    .column-header { display: flex; align-items: center; gap: 0.6rem; font-size: 1.05rem; font-weight: 700; padding: 0.6rem 0.2rem 1rem; border-bottom: 2px solid var(--border); margin-bottom: 1rem; }
+    .column-header .icon { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; }
+    .white-header .icon { background: #ddd; border: 2px solid #aaa; }
+    .black-header .icon { background: #222; border: 2px solid #555; }
+
+    .opening-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; display: flex; align-items: stretch; margin-bottom: 1rem; overflow: hidden; cursor: pointer; transition: border-color 0.15s, transform 0.12s; }
+    .opening-card:hover { border-color: var(--green); transform: translateY(-2px); }
+
+    .mini-board-wrap { flex-shrink: 0; padding: 10px; display: flex; align-items: center; justify-content: center; background: var(--surface2); border-right: 1px solid var(--border); }
+    .mini-board { display: grid; grid-template-columns: repeat(8, 32px); grid-template-rows: repeat(8, 32px); border: 2px solid var(--border); border-radius: 3px; overflow: hidden; }
+    .mini-sq { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; }
+    .mini-sq.light { background: var(--light-sq); }
+    .mini-sq.dark  { background: var(--dark-sq); }
+    .mini-sq img   { width: 88%; height: 88%; object-fit: contain; display: block; pointer-events: none; }
+
+    .card-body { padding: 1rem 1.25rem; display: flex; flex-direction: column; justify-content: center; gap: 0.45rem; flex: 1; }
+    .card-top { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+    .card-name { font-size: 1.05rem; font-weight: 700; }
+    .badge-type { font-size: 0.7rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .badge-solid       { background: #1e3a2e; color: #81b64c; }
+    .badge-classic     { background: #1e2e3a; color: #6ab0f0; }
+    .badge-popular     { background: #3a2e1e; color: #d4a017; }
+    .badge-champion    { background: #3a1e1e; color: #e05555; }
+    .badge-flexible    { background: #2a1e3a; color: #b06af0; }
+    .badge-aggressive  { background: #3a1e1e; color: #f06a6a; }
+    .badge-dynamic     { background: #1e3030; color: #40c0c0; }
+    .badge-unbalanced  { background: #3a2a1e; color: #f0a020; }
+
+    .card-desc { font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; }
+    .card-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 0.15rem; }
+    .card-lines { font-size: 0.78rem; color: var(--text-muted); }
+    .card-cta { font-size: 0.82rem; color: var(--green); font-weight: 600; background: none; border: none; cursor: pointer; padding: 0; }
+    .card-cta:hover { text-decoration: underline; }
+
+    /* ── TRAINER OVERLAY ── */
+    #trainerOverlay {
+      display: none; position: fixed; inset: 0;
+      background: var(--bg); z-index: 200;
+      flex-direction: column;
+    }
+    #trainerOverlay.open { display: flex; }
+
+    .trainer-nav {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 0 1.5rem; height: 52px; display: flex; align-items: center; gap: 1rem; flex-shrink: 0;
+    }
+    .trainer-back { background: none; border: 1px solid var(--border); color: var(--text-muted); border-radius: 6px; padding: 0.35rem 0.85rem; font-size: 0.9rem; cursor: pointer; transition: color 0.15s, border-color 0.15s; }
+    .trainer-back:hover { color: var(--text); border-color: var(--text); }
+    .trainer-title { font-size: 1rem; font-weight: 700; }
+    .trainer-sub { font-size: 0.82rem; color: var(--text-muted); margin-left: auto; }
+
+    .trainer-body {
+      flex: 1; display: grid; grid-template-columns: auto 1fr;
+      gap: 0; overflow: hidden;
+    }
+    @media (max-width: 860px) { .trainer-body { grid-template-columns: 1fr; overflow-y: auto; } }
+
+    /* Board side */
+    .trainer-board-side {
+      background: var(--surface2); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 2rem 2rem 2rem 6.5rem; gap: 0.5rem;
+    }
+    .trainer-board-wrap { position: relative; display: inline-block; line-height: 0; }
+    .board-with-labels { display: flex; flex-direction: row; align-items: flex-start; gap: 4px; }
+    .board-and-files { display: flex; flex-direction: column; align-items: flex-start; }
+    .rank-labels { display: flex; flex-direction: column; padding-top: 3px; }
+    .rank-labels span { font-size: 0.7rem; color: var(--text-muted); width: 16px; height: var(--tsq, 60px); display: flex; align-items: center; justify-content: center; }
+    #trainerBoard {
+      display: grid;
+      grid-template-columns: repeat(8, var(--tsq, 60px));
+      grid-template-rows: repeat(8, var(--tsq, 60px));
+      border: 3px solid var(--border); border-radius: 4px; overflow: hidden;
+    }
+    .t-sq { width: var(--tsq, 60px); height: var(--tsq, 60px); display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; user-select: none; }
+    .t-sq.light { background: var(--light-sq); }
+    .t-sq.dark  { background: var(--dark-sq); }
+    .t-sq.t-selected { background: rgba(20,85,0,0.5) !important; }
+    .t-sq.t-hint { background: rgba(129,182,76,0.55) !important; }
+    .t-sq.t-last-from { background: rgba(255,220,0,0.35) !important; }
+    .t-sq.t-last-to   { background: rgba(255,220,0,0.55) !important; }
+    .t-sq.t-wrong { background: rgba(200,50,30,0.55) !important; }
+    .check-badge {
+      position: absolute; top: 4px; right: 4px;
+      width: 18px; height: 18px; border-radius: 50%;
+      background: #81b64c; color: #111; font-size: 11px; font-weight: 900;
+      display: flex; align-items: center; justify-content: center;
+      z-index: 15; pointer-events: none;
+      animation: checkPop 0.18s cubic-bezier(.34,1.56,.64,1) forwards;
+    }
+    @keyframes checkPop {
+      from { transform: scale(0); opacity: 0; }
+      to   { transform: scale(1); opacity: 1; }
+    }
+    .t-sq.t-legal::after {
+      content: ''; position: absolute;
+      width: 32%; height: 32%; border-radius: 50%; background: rgba(0,0,0,0.2);
+    }
+    .t-sq.t-legal.t-has-piece::after {
+      width: 100%; height: 100%; border-radius: 0; background: none;
+      border: 4px solid rgba(0,0,0,0.2); box-sizing: border-box;
+    }
+    .t-sq img { width: 88%; height: 88%; object-fit: contain; display: block; pointer-events: none; }
+    .trainer-coords { display: flex; width: calc(var(--tsq, 60px) * 8); justify-content: space-around; margin-left: 3px; }
+    .trainer-coords span { font-size: 0.7rem; color: var(--text-muted); width: var(--tsq, 60px); text-align: center; }
+
+    /* Panel side */
+    .trainer-panel {
+      display: flex; flex-direction: column; padding: 2rem;
+      overflow-y: auto; gap: 1.25rem;
+    }
+
+    .step-progress { display: flex; align-items: center; gap: 0.75rem; }
+    .step-dots { display: flex; gap: 5px; flex-wrap: wrap; }
+    .step-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--border); transition: background 0.2s; }
+    .step-dot.done  { background: var(--green); }
+    .step-dot.current { background: #f6a623; }
+    .step-label { font-size: 0.82rem; color: var(--text-muted); white-space: nowrap; }
+
+    .instruction-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem;
+    }
+    .instr-who {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+      padding: 0.2rem 0.6rem; border-radius: 4px; margin-bottom: 0.75rem;
+    }
+    .instr-who.your-turn { background: #1e3a2e; color: var(--green); }
+    .instr-who.auto-turn { background: #2a2a2a; color: var(--text-muted); }
+    .instr-notation { font-family: monospace; font-size: 1.2rem; font-weight: 700; color: #f0d9b5; margin-bottom: 0.5rem; }
+    .instr-text { font-size: 0.92rem; color: var(--text-muted); line-height: 1.65; }
+    .instr-hint { font-size: 0.82rem; color: #f6a623; margin-top: 0.6rem; }
+
+    .feedback-bar {
+      padding: 0.65rem 1rem; border-radius: 8px; font-size: 0.9rem; text-align: center;
+      display: none;
+    }
+    .feedback-bar.wrong  { display: block; background: #2e1414; border: 1px solid #c0392b; color: #e74c3c; }
+    .feedback-bar.good   { display: block; background: #1e2e14; border: 1px solid var(--green); color: var(--green); }
+
+    .move-log { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; }
+    .move-log-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 0.6rem; font-weight: 700; }
+    .move-log-list { font-family: monospace; font-size: 0.88rem; color: var(--text-muted); line-height: 1.8; min-height: 2rem; }
+    .move-log-list .w-move { color: var(--text); }
+    .move-log-list .b-move { color: var(--text-muted); }
+
+    .trainer-done {
+      background: var(--surface); border: 1px solid var(--green); border-radius: 12px; padding: 1.5rem; text-align: center; display: none;
+    }
+    .trainer-done.visible { display: block; }
+    .trainer-done h3 { font-size: 1.2rem; color: var(--green); margin-bottom: 0.5rem; }
+    .trainer-done p { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem; }
+    .btn { padding: 0.65rem 1.25rem; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; border: none; transition: opacity 0.15s; }
+    .btn:hover { opacity: 0.85; }
+    .btn-primary { background: var(--green); color: #111; }
+    .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+
+    /* ── LEARN MORE LESSON OVERLAY ── */
+    .card-actions { display: flex; gap: 0.75rem; align-items: center; }
+    .card-learn { font-size: 0.82rem; color: #6ab0f0; font-weight: 600; background: none; border: none; cursor: pointer; padding: 0; }
+    .card-learn:hover { text-decoration: underline; }
+    #lessonOverlay { display: none; position: fixed; inset: 0; background: var(--bg); z-index: 210; flex-direction: column; }
+    #lessonOverlay.open { display: flex; }
+    .lesson-nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 1.5rem; height: 52px; display: flex; align-items: center; gap: 1rem; flex-shrink: 0; }
+    .lesson-title { font-size: 1rem; font-weight: 700; }
+    .lesson-sub { font-size: 1.1rem; font-weight: 700; color: var(--text); margin-left: auto; }
+    .lesson-tabs { display: flex; align-items: center; gap: 0.4rem; padding: 0.85rem 1.5rem; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .lesson-tab-list { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .lesson-tab-list.dim { opacity: 0.4; pointer-events: none; }
+    .lesson-study-controls { display: flex; gap: 0.4rem; flex-shrink: 0; }
+    .lesson-inline-restart { margin-top: 0.85rem; }
+    .lesson-study-btn { font-size: 0.8rem; padding: 0.4rem 0.75rem; border-radius: 6px; border: 1px solid var(--green); background: transparent; color: var(--green); cursor: pointer; font-weight: 700; transition: background 0.15s; }
+    .lesson-study-btn:hover { background: rgba(129,182,76,0.15); }
+    .lesson-study-btn.active { background: var(--green); color: #111; }
+    .lesson-hint-btn { border-color: #f6a623; color: #f6a623; }
+    .lesson-hint-btn:hover { background: rgba(246,166,35,0.15); }
+    .lesson-tab { font-size: 0.8rem; padding: 0.4rem 0.7rem; border-radius: 6px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-muted); cursor: pointer; transition: color 0.15s, background 0.15s; }
+    .lesson-tab:hover { color: var(--text); }
+    .lesson-tab.active { background: var(--green); color: #111; border-color: var(--green); font-weight: 700; }
+    .lesson-body { flex: 1; display: grid; grid-template-columns: auto 1fr; gap: 0; overflow: hidden; }
+    @media (max-width: 860px) { .lesson-body { grid-template-columns: 1fr; overflow-y: auto; } }
+    .lesson-board-side { background: var(--surface2); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0.75rem 0.75rem 0.75rem 6.5rem; gap: 0.5rem; }
+    .lesson-nav-restart { margin-left: auto; }
+    .lesson-linename { font-size: 1.25rem; font-weight: 800; color: var(--text); padding: 0.1rem 0.2rem; }
+    #lessonBoard { display: grid; grid-template-columns: repeat(8, var(--lsq, 58px)); grid-template-rows: repeat(8, var(--lsq, 58px)); border: 3px solid var(--border); border-radius: 4px; overflow: hidden; }
+    .lesson-board-area { display: flex; flex-direction: row; align-items: flex-start; gap: 4px; }
+    .lesson-board-and-files { display: flex; flex-direction: column; align-items: flex-start; }
+    .lesson-ranks { display: flex; flex-direction: column; padding-top: 3px; }
+    .lesson-ranks span { font-size: 0.7rem; color: var(--text-muted); width: 16px; height: var(--lsq, 58px); display: flex; align-items: center; justify-content: center; }
+    .lesson-files { display: flex; width: calc(var(--lsq, 58px) * 8); margin-left: 3px; }
+    .lesson-files span { font-size: 0.7rem; color: var(--text-muted); width: var(--lsq, 58px); text-align: center; }
+    .l-sq { width: var(--lsq, 58px); height: var(--lsq, 58px); display: flex; align-items: center; justify-content: center; position: relative; }
+    .l-sq.light { background: var(--light-sq); }
+    .l-sq.dark { background: var(--dark-sq); }
+    .l-sq.l-from { background: rgba(255,220,0,0.35) !important; }
+    .l-sq.l-to { background: rgba(255,220,0,0.55) !important; }
+    .l-sq { cursor: pointer; user-select: none; }
+    .l-sq.l-sel { background: rgba(20,85,0,0.5) !important; }
+    .l-sq.l-hint { background: rgba(129,182,76,0.55) !important; }
+    .l-sq.l-wrong { background: rgba(200,50,30,0.55) !important; }
+    .l-sq.l-legal::after { content:''; position:absolute; width:32%; height:32%; border-radius:50%; background:rgba(0,0,0,0.2); }
+    .l-sq.l-legal.l-has-piece::after { width:100%; height:100%; border-radius:0; background:none; border:4px solid rgba(0,0,0,0.2); box-sizing:border-box; }
+    .l-sq img { width: 88%; height: 88%; object-fit: contain; pointer-events: none; }
+    .lesson-movenum.your-turn { color: var(--green); }
+    .lesson-movenum.auto-turn { color: var(--text-muted); }
+    .lesson-hint { font-size: 0.82rem; color: #f6a623; margin-top: 0.6rem; }
+    .lesson-controls { display: flex; gap: 0.6rem; align-items: center; }
+    .lesson-progress { font-size: 0.8rem; color: var(--text-muted); }
+    .lesson-panel { display: flex; flex-direction: column; padding: 2rem; overflow-y: auto; gap: 1.1rem; }
+    .lesson-summary { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.15rem; font-size: 0.9rem; color: var(--text-muted); line-height: 1.6; }
+    .lesson-movecard { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; }
+    .lesson-movenum { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 0.5rem; }
+    .lesson-notation { font-family: monospace; font-size: 1.3rem; font-weight: 700; color: #f0d9b5; margin-bottom: 0.5rem; min-height: 1.4rem; }
+    .lesson-explain { font-size: 0.92rem; color: var(--text); line-height: 1.65; }
+    .lesson-movelist { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; font-family: monospace; font-size: 0.85rem; line-height: 1.95; color: var(--text-muted); }
+    .lesson-movelist .lm-cur { background: var(--green); color: #111; border-radius: 3px; padding: 0 4px; font-weight: 700; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="index.html"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 128" width="22" height="28" style="display:inline-block;vertical-align:middle;flex-shrink:0" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+  <!-- Crown spikes (gold) -->
+  <path d="M8,46 L14,10 L24,32 L33,4 L42,28 L50,0 L58,28 L67,4 L76,32 L86,10 L92,46 Q71,42 50,42 Q29,42 8,46 Z" fill="#F5C518"/>
+  <!-- Crown band (dark gold shadow) -->
+  <path d="M8,46 Q29,42 50,42 Q71,42 92,46 Q71,51 50,51 Q29,51 8,46 Z" fill="#C8960C"/>
+  <!-- Crown gems -->
+  <circle cx="26" cy="46" r="2.8" fill="rgba(255,255,255,0.88)"/>
+  <circle cx="50" cy="46" r="2.8" fill="rgba(255,255,255,0.88)"/>
+  <circle cx="74" cy="46" r="2.8" fill="rgba(255,255,255,0.88)"/>
+  <!-- Pawn head -->
+  <circle cx="50" cy="63" r="21" fill="#81b64c"/>
+  <!-- Neck -->
+  <path d="M43,83 C42,88 39,92 36,96 L64,96 C61,92 58,88 57,83 Z" fill="#81b64c"/>
+  <!-- Body -->
+  <path d="M36,96 C30,104 28,110 30,115 L70,115 C72,110 70,104 64,96 Z" fill="#81b64c"/>
+  <!-- Base -->
+  <rect x="18" y="111" width="64" height="11" rx="5.5" fill="#81b64c"/>
+</svg> <span>Chess</span>Practice</a>
+  <div class="nav-links">
+    <a href="index.html">Home</a>
+    <a href="practice.html">Practice</a>
+    <a href="openings.html" class="active">Openings</a>
+    <a href="puzzles.html">Puzzles</a>
+    <a href="review.html">Review</a>
+  </div>
+</nav>
+
+<div class="page-header">
+  <h1>Chess Openings</h1>
+  <p>Learn the most important opening systems for both sides. Click any opening to start an interactive lesson.</p>
+</div>
+
+<div class="columns">
+  <div class="column">
+    <div class="column-header white-header">
+      <div class="icon">♔</div> Playing as White
+    </div>
+    <div id="whiteList"></div>
+  </div>
+  <div class="column">
+    <div class="column-header black-header">
+      <div class="icon">♚</div> Playing as Black
+    </div>
+    <div id="blackList"></div>
+  </div>
+</div>
+
+<!-- ══ TRAINER OVERLAY ══ -->
+<div id="trainerOverlay">
+  <div class="trainer-nav">
+    <button class="trainer-back" onclick="closeTrainer()">← Openings</button>
+    <span class="trainer-title" id="tTitle"></span>
+    <span class="trainer-sub" id="tSub"></span>
+  </div>
+  <div class="trainer-body">
+    <div class="trainer-board-side">
+      <div class="board-with-labels">
+        <div class="rank-labels" id="tRanks">
+          <span>8</span><span>7</span><span>6</span><span>5</span>
+          <span>4</span><span>3</span><span>2</span><span>1</span>
+        </div>
+        <div class="board-and-files">
+          <div class="trainer-board-wrap">
+            <div id="trainerBoard" oncontextmenu="return false"></div>
+          </div>
+          <div class="trainer-coords" id="tCoords">
+            <span>a</span><span>b</span><span>c</span><span>d</span>
+            <span>e</span><span>f</span><span>g</span><span>h</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="trainer-panel">
+      <div class="step-progress">
+        <div class="step-dots" id="tDots"></div>
+        <div class="step-label" id="tStepLabel"></div>
+      </div>
+      <div class="instruction-card">
+        <div class="instr-who" id="tWho"></div>
+        <div class="instr-notation" id="tNotation"></div>
+        <div class="instr-text" id="tText"></div>
+        <div class="instr-hint" id="tHint"></div>
+      </div>
+      <div class="feedback-bar" id="tFeedback"></div>
+      <div class="move-log">
+        <div class="move-log-title">Moves Played</div>
+        <div class="move-log-list" id="tMoveLog">—</div>
+      </div>
+      <div class="trainer-done" id="tDone">
+        <h3>🎉 Opening Complete!</h3>
+        <p id="tDoneText"></p>
+        <div style="display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="restartTrainer()">Practice Again</button>
+          <button class="btn btn-secondary" onclick="closeTrainer()">Back to Openings</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ LEARN MORE LESSON OVERLAY ══ -->
+<div id="lessonOverlay">
+  <div class="lesson-nav">
+    <button class="trainer-back" onclick="closeLesson()">← Openings</button>
+    <span class="lesson-title" id="lTitle">London System — 5 Popular Lines</span>
+  </div>
+  <div class="lesson-tabs">
+    <div class="lesson-tab-list" id="lTabs"></div>
+    <div class="lesson-study-controls">
+      <button class="lesson-study-btn" id="lStudyBtn" onclick="toggleStudy()">📚 Study</button>
+    </div>
+  </div>
+  <div class="lesson-body">
+    <div class="lesson-board-side">
+      <div class="lesson-board-area">
+        <div class="lesson-ranks" id="lRanks"></div>
+        <div class="lesson-board-and-files">
+          <div id="lessonBoard"></div>
+          <div class="lesson-files" id="lFiles"></div>
+        </div>
+      </div>
+      <div class="lesson-progress" id="lProgress"></div>
+    </div>
+    <div class="lesson-panel">
+      <div class="lesson-summary" id="lSummary"></div>
+      <div class="lesson-linename" id="lLineName"></div>
+      <div class="lesson-movecard">
+        <div class="lesson-movenum" id="lMoveNum"></div>
+        <button class="lesson-study-btn lesson-hint-btn" id="lHintBtn" onclick="showStudyHint()" style="display:none; margin:0.5rem 0;">💡 Hint</button>
+        <div class="lesson-notation" id="lNotation"></div>
+        <div class="lesson-explain" id="lExplain"></div>
+        <div class="lesson-hint" id="lHint"></div>
+        <button class="btn btn-secondary lesson-inline-restart" onclick="lessonRestart()">↺ Restart line</button>
+      </div>
+      <div class="feedback-bar" id="lFeedback"></div>
+      <div class="lesson-movelist" id="lMoveList"></div>
+      <div class="trainer-done" id="lDone">
+        <h3 id="lDoneTitle">🎉 Line Complete!</h3>
+        <p id="lDoneText"></p>
+        <button class="btn btn-primary" id="lDoneBtn" onclick="lessonRestart()">Practice this line again</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Piece images ──────────────────────────────────────────────────────────────
+const IMGS = {
+  K:'https://upload.wikimedia.org/wikipedia/commons/4/42/Chess_klt45.svg',
+  Q:'https://upload.wikimedia.org/wikipedia/commons/1/15/Chess_qlt45.svg',
+  R:'https://upload.wikimedia.org/wikipedia/commons/7/72/Chess_rlt45.svg',
+  B:'https://upload.wikimedia.org/wikipedia/commons/b/b1/Chess_blt45.svg',
+  N:'https://upload.wikimedia.org/wikipedia/commons/7/70/Chess_nlt45.svg',
+  P:'https://upload.wikimedia.org/wikipedia/commons/4/45/Chess_plt45.svg',
+  k:'https://upload.wikimedia.org/wikipedia/commons/f/f0/Chess_kdt45.svg',
+  q:'https://upload.wikimedia.org/wikipedia/commons/4/47/Chess_qdt45.svg',
+  r:'https://upload.wikimedia.org/wikipedia/commons/f/ff/Chess_rdt45.svg',
+  b:'https://upload.wikimedia.org/wikipedia/commons/9/98/Chess_bdt45.svg',
+  n:'https://upload.wikimedia.org/wikipedia/commons/e/ef/Chess_ndt45.svg',
+  p:'https://upload.wikimedia.org/wikipedia/commons/c/c7/Chess_pdt45.svg',
+};
+
+const START_BOARD = [
+  'r','n','b','q','k','b','n','r',
+  'p','p','p','p','p','p','p','p',
+  '.','.','.','.','.','.','.','.', '.','.','.','.','.','.','.','.',
+  '.','.','.','.','.','.','.','.', '.','.','.','.','.','.','.','.',
+  'P','P','P','P','P','P','P','P',
+  'R','N','B','Q','K','B','N','R',
+];
+
+// ── Opening card data ─────────────────────────────────────────────────────────
+const WHITE_OPENINGS = [
+  {
+    name:"London System", badge:"Solid", badgeClass:"badge-solid", lines:24, lessonKey:"london",
+    desc:"A disciplined and strategically sound system rooted in classical positional principles. White constructs a compact pawn structure anchored on d4, e3, and c3, deploys the light-squared bishop actively to f4 before sealing the diagonal with e3, and coordinates all pieces to their optimal squares — producing a resilient formation that exerts durable pressure with minimal theoretical risk at any level.",
+    board:[
+      'r','.','b','q','.','r','k','.',
+      'p','p','.','.','b','p','p','p',
+      '.','.','n','.','p','n','.','.',
+      '.','.','p','p','.','.','.','.',
+      '.','.','.','P','.','B','.','.',
+      '.','.','P','B','P','N','.','.',
+      'P','P','.','N','.','P','P','P',
+      'R','.','.','Q','.','R','K','.'
+    ],
+    trainerKey:"London System"
+  },
+  {
+    name:"Queen's Gambit", badge:"Classic", badgeClass:"badge-classic", lines:32, lessonKey:"queens_gambit",
+    desc:"One of the oldest and most respected openings in chess. White occupies the center with d4, then offers the c-pawn to gain even more control. Whether Black accepts or declines, White achieves excellent development and a strong central presence.",
+    board:[
+      'r','n','b','q','k','b','.','r',
+      'p','p','p','.','.','p','p','p',
+      '.','.','.','.','p','n','.','.',
+      '.','.','.','p','.','.','B','.',
+      '.','.','P','P','.','.','.','.',
+      '.','.','N','.','.','.','.','.',
+      'P','P','.','.','P','P','P','P',
+      'R','.','.','Q','K','B','N','R'
+    ],
+    trainerKey:"Queen's Gambit"
+  },
+  {
+    name:"Italian Game", badge:"Popular", badgeClass:"badge-popular", lines:28, lessonKey:"italian_game",
+    desc:"One of the oldest recorded openings, the Italian places the bishop on c4 to target f7 — the weakest point in Black's starting position. It leads to rich, open positions favored by players who enjoy tactical complexity and direct attacking chances.",
+    board:[
+      'r','.','b','q','k','.','n','r',
+      'p','p','p','p','.','p','p','p',
+      '.','.','n','.','.','.','.','.',
+      '.','.','b','.','p','.','.','.',
+      '.','.','B','.','P','.','.','.',
+      '.','.','P','.','.','N','.','.',
+      'P','P','.','P','.','P','P','P',
+      'R','N','B','Q','K','.','.','R'
+    ],
+    trainerKey:"Italian Game"
+  },
+  {
+    name:"Ruy López", badge:"Champion", badgeClass:"badge-champion", lines:40, lessonKey:"ruy_lopez",
+    desc:"The most prestigious e4 opening in chess history. By developing the bishop to b5, White immediately pressures the knight defending Black's center — not to win material, but to create deep, lasting strategic imbalances used by virtually every world champion.",
+    board:[
+      'r','.','b','q','k','b','n','r',
+      '.','p','p','p','.','p','p','p',
+      'p','.','n','.','.','.','.','.',
+      '.','.','.','.','p','.','.','.',
+      'B','.','.','.','P','.','.','.',
+      '.','.','.','.','.','N','.','.',
+      'P','P','P','P','.','P','P','P',
+      'R','N','B','Q','K','.','.','R'
+    ],
+    trainerKey:"Ruy López"
+  },
+  {
+    name:"King's Indian Attack", badge:"Flexible", badgeClass:"badge-flexible", lines:18, lessonKey:"kings_indian_attack",
+    desc:"A hyperflexible system deployable against virtually any Black setup. White fianchettoes the bishop to g2, castles safely, and waits for the optimal moment to strike with e4. Favored by Fischer, Réti, and Tal for its strategic depth and minimal theory requirements.",
+    board:[
+      'r','n','b','q','k','b','.','r',
+      'p','p','.','.','p','p','p','p',
+      '.','.','.','.','.','n','.','.',
+      '.','.','p','p','.','.','.','.',
+      '.','.','.','.','.','.','.','.',
+      '.','.','.','.','.','N','P','.',
+      'P','P','P','P','P','P','B','P',
+      'R','N','B','Q','.','R','K','.'
+    ],
+    trainerKey:"King's Indian Attack"
+  },
+];
+
+const BLACK_OPENINGS = [
+  {
+    name:"Sicilian Defense", badge:"Aggressive", badgeClass:"badge-aggressive", lines:50, lessonKey:"sicilian",
+    desc:"The most popular response to 1.e4 at the grandmaster level. By playing c5, Black fights for the d4 square from the flank rather than mirroring White, creating an asymmetric game with dynamic counterplay and full winning chances from the very first move.",
+    board:[
+      'r','n','b','q','k','b','.','r',
+      'p','p','.','.','p','p','p','p',
+      '.','.','.','p','.','n','.','.',
+      '.','.','.','.','.','.','.','.',
+      '.','.','.','N','P','.','.','.',
+      '.','.','.','.','.','.','.','.',
+      'P','P','P','.','.','P','P','P',
+      'R','N','B','Q','K','B','.','R'
+    ],
+    trainerKey:"Sicilian Defense"
+  },
+  {
+    name:"French Defense", badge:"Solid", badgeClass:"badge-solid", lines:30, lessonKey:"french_defense",
+    desc:"A disciplined and time-tested response to 1.e4. Black accepts a slightly cramped position in exchange for an exceptionally solid pawn structure. Counterplay comes through the c5 pawn break, targeting the base of White's central chain — a hallmark of strategic chess.",
+    board:[
+      'r','.','b','q','k','b','n','r',
+      'p','p','.','.','.','p','p','p',
+      '.','.','n','.','p','.','.','.',
+      '.','.','p','p','P','.','.','.',
+      '.','.','.','P','.','.','.','.',
+      '.','.','P','.','.','.','.','.',
+      'P','P','.','.','.','P','P','P',
+      'R','N','B','Q','K','B','N','R'
+    ],
+    trainerKey:"French Defense"
+  },
+  {
+    name:"Caro-Kann Defense", badge:"Solid", badgeClass:"badge-solid", lines:26, lessonKey:"caro_kann",
+    desc:"A sophisticated and deeply principled defense. Black supports d5 with c6, then develops the light-squared bishop outside the pawn chain — solving the structural problem that makes the French Defense uncomfortable. The result is a resilient, long-term structure favored by positional players.",
+    board:[
+      'r','n','.','q','k','b','n','r',
+      'p','p','.','.','p','p','p','p',
+      '.','.','p','.','.','.','.','.',
+      '.','.','.','.','.','b','.','.',
+      '.','.','.','P','N','.','.','.',
+      '.','.','.','.','.','.','.','.',
+      'P','P','P','.','.','P','P','P',
+      'R','.','B','Q','K','B','N','R'
+    ],
+    trainerKey:"Caro-Kann Defense"
+  },
+  {
+    name:"King's Indian Defense", badge:"Dynamic", badgeClass:"badge-dynamic", lines:44, lessonKey:"kings_indian_defense",
+    desc:"One of the most dynamic and combative defenses in chess. Black deliberately allows White to build a massive pawn center, then strikes back with e5 or c5 to create imbalanced positions full of tactical complexity. A firm favorite of Fischer, Kasparov, and Tal.",
+    board:[
+      'r','n','b','q','k','.','.','r',
+      'p','p','p','.','p','p','b','p',
+      '.','.','.','p','.','n','p','.',
+      '.','.','.','.','.','.','.','.',
+      '.','.','P','P','P','.','.','.',
+      '.','.','N','.','.','.','.','.',
+      'P','P','.','.','.','P','P','P',
+      'R','.','B','Q','K','B','N','R'
+    ],
+    trainerKey:"King's Indian Defense"
+  },
+  {
+    name:"Dutch Defense", badge:"Unbalanced", badgeClass:"badge-unbalanced", lines:20, lessonKey:"dutch_defense",
+    desc:"A bold and provocative response to 1.d4. By playing f5 immediately, Black controls e4 and signals aggressive intent from the very first move. The resulting asymmetric positions provide rich attacking opportunities, at the cost of some structural concessions that reward precise play.",
+    board:[
+      'r','n','b','q','k','.','.','r',
+      'p','p','p','p','b','.','p','p',
+      '.','.','.','.','p','n','.','.',
+      '.','.','.','.','.','p','.','.',
+      '.','.','.','P','.','.','.','.',
+      '.','.','.','.','.','N','P','.',
+      'P','P','P','.','P','P','B','P',
+      'R','N','B','Q','K','.','.','R'
+    ],
+    trainerKey:"Dutch Defense"
+  },
+];
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function squareName(r,c) { return 'abcdefgh'[c] + (8-r); }
+
+// ── Trainer sequences ─────────────────────────────────────────────────────────
+const TRAINER_DATA = {
+  "London System": {
+    playerColor:'white', doneText:"You've completed the full London System — pawns on d4, e3, and c3, bishops on f4 and d3, knights on f3 and d2, and your king safely castled. The c3 backbone keeps your center rock-solid. From here, Ne5 and a kingside pawn push give you a dangerous attack.",
+    steps:[
+      {auto:false,from:[6,3],to:[4,3],notation:'d4',explain:"Push the d-pawn to d4, staking a claim in the center and opening the diagonal for your c1 bishop — the London's defining piece."},
+      {auto:true, from:[1,3],to:[3,3],notation:'d5',explain:"Black responds with d5, meeting your central control head-on."},
+      {auto:false,from:[7,2],to:[4,5],notation:'Bf4',explain:"The London's signature move. Develop the bishop to f4 BEFORE playing e3. Once e3 is played, that bishop is locked behind your pawns for the rest of the game. Always develop it first."},
+      {auto:true, from:[0,6],to:[2,5],notation:'Nf6',explain:"Black develops the knight, adding support to the center."},
+      {auto:false,from:[7,6],to:[5,5],notation:'Nf3',explain:"Bring the knight to f3 — it defends d4, controls e5, and clears the way to castle kingside."},
+      {auto:true, from:[1,4],to:[2,4],notation:'e6',explain:"Black plays e6, solidifying the pawn structure."},
+      {auto:false,from:[6,4],to:[5,4],notation:'e3',explain:"Seal the structure with e3. Your bishop is already active on f4 — now finish developing your pieces."},
+      {auto:true, from:[0,5],to:[1,4],notation:'Be7',explain:"Black develops the bishop to e7 and prepares to castle."},
+      {auto:false,from:[7,5],to:[5,3],notation:'Bd3',explain:"Develop the light-squared bishop to d3. It aims down the b1-h7 diagonal straight at Black's kingside — the London's attacking bishop."},
+      {auto:true, from:[0,4],to:[0,6],notation:'0-0',castle:{rookFrom:[0,7],rookTo:[0,5]},explain:"Black castles kingside, bringing the king to safety."},
+      {auto:false,from:[7,1],to:[6,3],notation:'Nbd2',explain:"Bring the b1 knight to d2. It supports the e4 break and can reroute to e5. Your minor pieces are now fully developed."},
+      {auto:true, from:[1,2],to:[3,2],notation:'c5',explain:"Black challenges your center with c5, pressuring the d4 pawn."},
+      {auto:false,from:[6,2],to:[5,2],notation:'c3',explain:"Before castling, push the c-pawn to c3 — the quiet backbone of the London. It firmly defends d4, opens the c2/b3 squares for your queen, and gives the f4 bishop a safe retreat. Now your center is locked solid."},
+      {auto:true, from:[0,1],to:[2,2],notation:'Nc6',explain:"Black develops the knight, adding more pressure on d4."},
+      {auto:false,from:[7,4],to:[7,6],notation:'0-0',castle:{rookFrom:[7,7],rookTo:[7,5]},explain:"Castle kingside! The London is fully built: pawns on d4/e3/c3, bishops on f4 and d3, knights on f3 and d2, king safe. Next plans: Ne5 and a kingside pawn storm."},
+    ]
+  },
+  "Queen's Gambit": {
+    playerColor:'white', doneText:"Excellent! The Queen's Gambit with Bg5 is one of the richest, most strategically rewarding openings in chess. Your pieces are active and you control the center.",
+    steps:[
+      {auto:false,from:[6,3],to:[4,3],notation:'d4',explain:"Open with d4, the foundation of all Queen's Pawn openings. You're fighting for central space immediately."},
+      {auto:true, from:[1,3],to:[3,3],notation:'d5',explain:"Black meets d4 with d5, establishing a solid center."},
+      {auto:false,from:[6,2],to:[4,2],notation:'c4',explain:"The Queen's Gambit! Offer the c-pawn to displace Black's d5. It's not a true gambit — if Black takes, you regain the pawn easily. Your real goal is superior central control."},
+      {auto:true, from:[1,4],to:[2,4],notation:'e6',explain:"Black declines with e6 — the Queen's Gambit Declined — maintaining the center at the cost of some space."},
+      {auto:false,from:[7,1],to:[5,2],notation:'Nc3',explain:"Develop the knight to c3, putting immediate pressure on d5 and preparing the e4 advance."},
+      {auto:true, from:[0,6],to:[2,5],notation:'Nf6',explain:"Black develops the knight to f6, reinforcing the center."},
+      {auto:false,from:[7,2],to:[3,6],notation:'Bg5',explain:"Pin Black's f6 knight with Bg5! This threatens to double Black's pawns and makes it difficult to maintain the d5 pawn. Your piece activity is excellent."},
+    ]
+  },
+  "Italian Game": {
+    playerColor:'white', doneText:"The Italian Game is set up. After c3, you'll break with d4 and seize the full center. Rich middlegame play awaits with your bishop eyeing f7.",
+    steps:[
+      {auto:false,from:[6,4],to:[4,4],notation:'e4',explain:"Open with e4, the most direct way to fight for the center. You're seizing space and opening lines immediately."},
+      {auto:true, from:[1,4],to:[3,4],notation:'e5',explain:"Black mirrors with e5 — the Open Game. Both sides play directly for the center, leading to sharp, tactical positions."},
+      {auto:false,from:[7,6],to:[5,5],notation:'Nf3',explain:"Develop the knight to f3, attacking the e5 pawn and preparing to castle kingside."},
+      {auto:true, from:[0,1],to:[2,2],notation:'Nc6',explain:"Black defends e5 with the knight."},
+      {auto:false,from:[7,5],to:[4,2],notation:'Bc4',explain:"The Italian Game! The bishop points directly at f7 — the weakest square in Black's position, defended only by the king. Countless tactical opportunities flow from this placement."},
+      {auto:true, from:[0,5],to:[3,2],notation:'Bc5',explain:"Black develops symmetrically with Bc5, mirroring your bishop and entering the Giuoco Piano."},
+      {auto:false,from:[6,2],to:[5,2],notation:'c3',explain:"Play c3, preparing the powerful d4 break. Next comes d4 to challenge Black's bishop and seize the full center. The game is opening up beautifully."},
+    ]
+  },
+  "Ruy López": {
+    playerColor:'white', doneText:"The Morphy Defense is one of the most common in chess. By retreating to a4, you maintain pressure on c6 and keep lasting central control.",
+    steps:[
+      {auto:false,from:[6,4],to:[4,4],notation:'e4',explain:"Start with e4, the cornerstone of the Ruy López."},
+      {auto:true, from:[1,4],to:[3,4],notation:'e5',explain:"Black plays e5, entering the classical Open Game."},
+      {auto:false,from:[7,6],to:[5,5],notation:'Nf3',explain:"Develop the knight to f3, attacking the e5 pawn directly."},
+      {auto:true, from:[0,1],to:[2,2],notation:'Nc6',explain:"Black defends e5 with the knight."},
+      {auto:false,from:[7,5],to:[3,1],notation:'Bb5',explain:"The Ruy López! The bishop attacks the knight defending e5. You're not winning a pawn immediately — you're creating subtle, long-term pressure on Black's center. This is one of the most deeply studied positions in chess history."},
+      {auto:true, from:[1,0],to:[2,0],notation:'a6',explain:"Black plays the Morphy Defense, asking the bishop to commit."},
+      {auto:false,from:[3,1],to:[4,0],notation:'Ba4',explain:"Retreat to a4, maintaining the pin. Black can't take the bishop profitably. Your plan: 0-0, Re1, and build enduring pressure on the e5 pawn."},
+    ]
+  },
+  "King's Indian Attack": {
+    playerColor:'white', doneText:"The KIA setup is complete. Your bishop on g2 controls the long diagonal, your king is safe, and when the time is right, e4 will give you a powerful central break.",
+    steps:[
+      {auto:false,from:[7,6],to:[5,5],notation:'Nf3',explain:"Start with Nf3 — flexible and strong. You control the center without committing your pawns, allowing you to react to whatever Black plays."},
+      {auto:true, from:[1,3],to:[3,3],notation:'d5',explain:"Black plays d5, establishing a central presence."},
+      {auto:false,from:[6,6],to:[5,6],notation:'g3',explain:"Play g3, preparing the fianchetto. You're building the King's Indian Attack — a system playable against almost any Black setup."},
+      {auto:true, from:[0,6],to:[2,5],notation:'Nf6',explain:"Black develops the knight."},
+      {auto:false,from:[7,5],to:[6,6],notation:'Bg2',explain:"Fianchetto the bishop to g2! This piece becomes a long-range weapon once the center opens, controlling the entire a8-h1 diagonal."},
+      {auto:true, from:[1,2],to:[3,2],notation:'c5',explain:"Black plays c5, fighting for central space."},
+      {auto:false,from:[7,4],to:[7,6],notation:'0-0',castle:{rookFrom:[7,7],rookTo:[7,5]},explain:"Castle kingside! Your king is safe and the rook enters the game. The KIA formation is complete — wait for the right moment to play e4."},
+    ]
+  },
+  "Sicilian Defense": {
+    playerColor:'black', doneText:"You've navigated the Najdorf move order. Your position is dynamic and full of counterplay. Develop with Be7 or Bd7 and prepare to castle.",
+    steps:[
+      {auto:true, from:[6,4],to:[4,4],notation:'e4',explain:"White opens with e4, the most popular first move in chess."},
+      {auto:false,from:[1,2],to:[3,2],notation:'c5',explain:"The Sicilian! Play c5 — instead of mirroring White with e5, you fight for the d4 square from the flank. This asymmetry gives you full winning chances from the very first move."},
+      {auto:true, from:[7,6],to:[5,5],notation:'Nf3',explain:"White develops the knight, preparing to push d4."},
+      {auto:false,from:[1,3],to:[2,3],notation:'d6',explain:"Play d6, preparing to develop your knight and keeping the position flexible. This is the foundation of the Najdorf and Dragon setups."},
+      {auto:true, from:[6,3],to:[4,3],notation:'d4',explain:"White plays d4, the critical central advance you've been inviting."},
+      {auto:false,from:[3,2],to:[4,3],notation:'cxd4',explain:"Capture! Trade your c-pawn for White's central d-pawn. You've opened the c-file for your rook and removed a key central pawn. White must recapture."},
+      {auto:true, from:[5,5],to:[4,3],notation:'Nxd4',explain:"White recaptures with the knight. Now develop your knight with Nf6."},
+      {auto:false,from:[0,6],to:[2,5],notation:'Nf6',explain:"Develop the knight to f6, controlling e4 and d5. Your position is dynamic, solid, and ready for the rich Sicilian middlegame."},
+    ]
+  },
+  "French Defense": {
+    playerColor:'black', doneText:"The French structure is established. With c5 undermining d4 and your knight developed, you have excellent queenside counterplay against White's center.",
+    steps:[
+      {auto:true, from:[6,4],to:[4,4],notation:'e4',explain:"White opens with e4."},
+      {auto:false,from:[1,4],to:[2,4],notation:'e6',explain:"Play e6 — the French Defense. You're preparing d5 and accepting a compact structure in exchange for extraordinary solidity."},
+      {auto:true, from:[6,3],to:[4,3],notation:'d4',explain:"White builds the ideal pawn center."},
+      {auto:false,from:[1,3],to:[3,3],notation:'d5',explain:"Strike back with d5! Challenge White's e4 pawn directly and establish the classic French pawn chain."},
+      {auto:true, from:[4,4],to:[3,4],notation:'e5',explain:"White advances e5 — the Advance Variation. White gains space but exposes a clear target: the base of the chain on d4."},
+      {auto:false,from:[1,2],to:[3,2],notation:'c5',explain:"Attack the base of White's pawn chain with c5! This is Black's primary counterplay in the French — undermine d4 and create queenside pressure."},
+      {auto:true, from:[6,2],to:[5,2],notation:'c3',explain:"White supports d4 with c3."},
+      {auto:false,from:[0,1],to:[2,2],notation:'Nc6',explain:"Develop the knight, increasing pressure on d4. Your plan is clear: exchange on d4, open lines, and attack White's weakened center."},
+    ]
+  },
+  "Caro-Kann Defense": {
+    playerColor:'black', doneText:"The Caro-Kann is complete. Your bishop on f5 is active outside the pawn chain — a structural advantage over the French Defense that gives you an excellent long-term game.",
+    steps:[
+      {auto:true, from:[6,4],to:[4,4],notation:'e4',explain:"White opens with e4."},
+      {auto:false,from:[1,2],to:[2,2],notation:'c6',explain:"Play c6 — the Caro-Kann. You're preparing d5 with solid support. Unlike the French, your light-squared bishop won't be locked in behind your own pawns."},
+      {auto:true, from:[6,3],to:[4,3],notation:'d4',explain:"White builds the center."},
+      {auto:false,from:[1,3],to:[3,3],notation:'d5',explain:"Push d5, fully supported by c6. Your pawn structure is solid and your bishop has a future outside the chain."},
+      {auto:true, from:[7,1],to:[5,2],notation:'Nc3',explain:"White develops the knight, pressing on d5."},
+      {auto:false,from:[3,3],to:[4,4],notation:'dxe4',explain:"Capture dxe4 — simplify the center and free your light-squared bishop to develop actively. This is a key moment in the Caro-Kann."},
+      {auto:true, from:[5,2],to:[4,4],notation:'Nxe4',explain:"White recaptures with the knight."},
+      {auto:false,from:[0,2],to:[3,5],notation:'Bf5',explain:"Develop the bishop to f5! This is the Caro-Kann's signature advantage — your bishop comes out BEFORE e6, remaining active and well-placed. Compare this to the French where this bishop is often a problem piece."},
+    ]
+  },
+  "King's Indian Defense": {
+    playerColor:'black', doneText:"The King's Indian is fully set up and your king is castled safely behind the powerful g7 bishop. Now strike the center with ...e5 — and once White closes with d5, launch the classic kingside pawn storm: ...f5, ...f4, ...g5!",
+    steps:[
+      {auto:true, from:[6,3],to:[4,3],notation:'d4',explain:"White plays d4."},
+      {auto:false,from:[0,6],to:[2,5],notation:'Nf6',explain:"Develop the knight to f6, controlling e4 and signaling the King's Indian. You'll let White build a large center, then attack it."},
+      {auto:true, from:[6,2],to:[4,2],notation:'c4',explain:"White plays c4, building the massive pawn center you've invited."},
+      {auto:false,from:[1,6],to:[2,6],notation:'g6',explain:"Play g6, preparing the bishop fianchetto. You're setting up the King's Indian — a deliberate invitation for White to overextend."},
+      {auto:true, from:[7,1],to:[5,2],notation:'Nc3',explain:"White develops the knight."},
+      {auto:false,from:[0,5],to:[1,6],notation:'Bg7',explain:"Fianchetto the bishop to g7! This 'dragon bishop' controls the long diagonal and will become your most powerful piece once the center breaks open. Castle next."},
+      {auto:true, from:[6,4],to:[4,4],notation:'e4',explain:"White completes the imposing pawn center. It looks overwhelming — but you have a concrete plan to destroy it."},
+      {auto:false,from:[1,3],to:[2,3],notation:'d6',explain:"Play d6, supporting a future ...e5 and opening a path for your light-squared bishop."},
+      {auto:true, from:[7,6],to:[5,5],notation:'Nf3',explain:"White develops the knight, reinforcing the big pawn center."},
+      {auto:false,from:[0,4],to:[0,6],notation:'0-0',castle:{rookFrom:[0,7],rookTo:[0,5]},explain:"Castle kingside! Your king is safe behind the fianchetto and the King's Indian is complete. Next: strike with ...e5, and after White plays d5, storm the kingside with ...f5-f4 and ...g5."},
+    ]
+  },
+  "Dutch Defense": {
+    playerColor:'black', doneText:"The Classical Dutch is set up. After 0-0, you'll advance with ...d5 and ...c5 to challenge White's center while maintaining your kingside attacking setup.",
+    steps:[
+      {auto:true, from:[6,3],to:[4,3],notation:'d4',explain:"White plays d4."},
+      {auto:false,from:[1,5],to:[3,5],notation:'f5',explain:"The Dutch Defense! Play f5, immediately claiming e4 and declaring aggressive intent. This is bold and asymmetric — you're fighting for the kingside from move one."},
+      {auto:true, from:[7,6],to:[5,5],notation:'Nf3',explain:"White develops the knight."},
+      {auto:false,from:[0,6],to:[2,5],notation:'Nf6',explain:"Develop the knight to f6, reinforcing control of e4 and continuing smooth development."},
+      {auto:true, from:[6,6],to:[5,6],notation:'g3',explain:"White prepares to fianchetto."},
+      {auto:false,from:[1,4],to:[2,4],notation:'e6',explain:"Play e6, consolidating the center. This is the Classical Dutch — solid and ready for ...d5 and queenside development."},
+      {auto:true, from:[7,5],to:[6,6],notation:'Bg2',explain:"White fianchettoes the bishop."},
+      {auto:false,from:[0,5],to:[1,4],notation:'Be7',explain:"Develop the bishop to e7, preparing to castle. Your structure is sound and active. After 0-0, advance with ...d5 and control the center."},
+    ]
+  },
+};
+
+// ── Render mini board (card) ──────────────────────────────────────────────────
+function renderMini(squares) {
+  const g = document.createElement('div'); g.className='mini-board';
+  for(let r=0;r<8;r++) for(let c=0;c<8;c++) {
+    const sq=document.createElement('div');
+    sq.className='mini-sq '+((r+c)%2===0?'light':'dark');
+    const p=squares[r*8+c];
+    if(p&&p!=='.'&&IMGS[p]){const im=document.createElement('img');im.src=IMGS[p];im.draggable=false;sq.appendChild(im);}
+    g.appendChild(sq);
+  }
+  return g;
+}
+
+function buildCard(op, side) {
+  const card=document.createElement('div'); card.className='opening-card';
+  const bw=document.createElement('div'); bw.className='mini-board-wrap';
+  bw.appendChild(renderMini(op.board)); card.appendChild(bw);
+  const body=document.createElement('div'); body.className='card-body';
+  body.innerHTML=`
+    <div class="card-top">
+      <span class="card-name">${op.name}</span>
+      <span class="badge-type ${op.badgeClass}">${op.badge}</span>
+    </div>
+    <div class="card-desc">${op.desc}</div>
+    <div class="card-footer">
+      <span class="card-lines">${op.lines} lines</span>
+      <div class="card-actions">
+        ${op.lessonKey ? `<button class="card-learn" data-learn="1">📖 Learn More</button>` : ``}
+        <button class="card-cta" id="cta-${op.name.replace(/\s/g,'_')}">Try the first line →</button>
+      </div>
+    </div>
+  `;
+  card.appendChild(body);
+  // Learn More button opens the lesson (and must not also start the trainer)
+  if (op.lessonKey) {
+    const lb = body.querySelector('[data-learn]');
+    if (lb) lb.addEventListener('click', (e) => { e.stopPropagation(); openLesson(op.lessonKey); });
+  }
+  // whole card click = start trainer
+  card.addEventListener('click', (e) => {
+    startTrainer(op);
+  });
+  return card;
+}
+
+WHITE_OPENINGS.forEach(op => document.getElementById('whiteList').appendChild(buildCard(op,'white')));
+BLACK_OPENINGS.forEach(op => document.getElementById('blackList').appendChild(buildCard(op,'black')));
+
+// ── TRAINER ───────────────────────────────────────────────────────────────────
+let TS = null; // trainer state
+
+function resizeTrainer() {
+  const NAV = 52, PAD = 64, COORDS = 24, RANKW = 20, PANEL = 360;
+  const availH = window.innerHeight - NAV - PAD - COORDS;
+  const availW = window.innerWidth  - PANEL - PAD - RANKW;
+  const tsq = Math.max(40, Math.floor(Math.min(availH, availW) / 8));
+  document.documentElement.style.setProperty('--tsq', tsq + 'px');
+}
+window.addEventListener('resize', () => {
+  if(document.getElementById('trainerOverlay').classList.contains('open')) resizeTrainer();
+});
+
+function startTrainer(op) {
+  const data = TRAINER_DATA[op.trainerKey];
+  if(!data) return;
+  TS = {
+    data,
+    board: [...START_BOARD],
+    stepIdx: 0,
+    selected: null,
+    lastFrom: null,
+    lastTo: null,
+    moveLog: [],
+    wrongFlash: false,
+  };
+  document.getElementById('tTitle').textContent = op.name;
+  document.getElementById('tSub').textContent = 'Playing as ' + (data.playerColor==='white'?'White ♔':'Black ♚');
+  document.getElementById('tDone').classList.remove('visible');
+  document.getElementById('tDoneText').textContent = data.doneText;
+  document.getElementById('tFeedback').className = 'feedback-bar';
+  document.getElementById('tFeedback').textContent = '';
+  resizeTrainer();
+  buildDots();
+  renderTrainer();
+  document.getElementById('trainerOverlay').classList.add('open');
+  // If first step is auto, play it after a short delay
+  if(TS.data.steps[0].auto) setTimeout(playAutoStep, 700);
+  else showStepInstruction();
+}
+
+function closeTrainer() {
+  document.getElementById('trainerOverlay').classList.remove('open');
+  TS = null;
+}
+
+function restartTrainer() {
+  const data = TS.data;
+  const title = document.getElementById('tTitle').textContent;
+  // find opening by trainer key
+  const all = [...WHITE_OPENINGS, ...BLACK_OPENINGS];
+  const op = all.find(o => o.name === title);
+  if(op) startTrainer(op);
+}
+
+function buildDots() {
+  const dots = document.getElementById('tDots');
+  dots.innerHTML = '';
+  TS.data.steps.forEach((s, i) => {
+    const d = document.createElement('div');
+    d.className = 'step-dot';
+    d.id = 'dot-'+i;
+    dots.appendChild(d);
+  });
+}
+
+function updateDots() {
+  TS.data.steps.forEach((s, i) => {
+    const d = document.getElementById('dot-'+i);
+    if(!d) return;
+    d.className = 'step-dot' + (i < TS.stepIdx ? ' done' : i === TS.stepIdx ? ' current' : '');
+  });
+  const total = TS.data.steps.length;
+  document.getElementById('tStepLabel').textContent = `Step ${Math.min(TS.stepIdx+1,total)} of ${total}`;
+}
+
+function showStepInstruction() {
+  if(!TS || TS.stepIdx >= TS.data.steps.length) return;
+  const step = TS.data.steps[TS.stepIdx];
+  const isPlayer = !step.auto;
+  const color = TS.data.playerColor;
+
+  const who = document.getElementById('tWho');
+  const notation = document.getElementById('tNotation');
+  const text = document.getElementById('tText');
+  const hint = document.getElementById('tHint');
+
+  if(isPlayer) {
+    who.className='instr-who your-turn';
+    who.textContent = '♟ Your move';
+    const fromSq = squareName(step.from[0], step.from[1]);
+    const toSq   = squareName(step.to[0],   step.to[1]);
+    hint.textContent = `Click the piece on ${fromSq}, then click ${toSq}.`;
+  } else {
+    who.className='instr-who auto-turn';
+    who.textContent = '⟳ Opponent responds';
+    hint.textContent = '';
+  }
+  notation.textContent = step.notation;
+  text.textContent = step.explain;
+  updateDots();
+}
+
+function animateWrongMove(fr, fc, tr, tc, piece, onDone) {
+  const boardEl = document.getElementById('trainerBoard');
+  if (!boardEl) { onDone(); return; }
+  const boardRect = boardEl.getBoundingClientRect();
+  const isFlipped = TS && TS.data.playerColor === 'black';
+  const TSQ = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--tsq')) || 60;
+
+  const fromVr = isFlipped ? 7-fr : fr, fromVc = isFlipped ? 7-fc : fc;
+  const toVr   = isFlipped ? 7-tr : tr, toVc   = isFlipped ? 7-tc : tc;
+
+  const squares = boardEl.querySelectorAll('.t-sq');
+  const fromEl = squares[fromVr * 8 + fromVc];
+  const fromImg = fromEl?.querySelector('img');
+  if (fromImg) fromImg.style.opacity = '0';
+
+  const fromX = boardRect.left + fromVc * TSQ + 3;
+  const fromY = boardRect.top  + fromVr * TSQ + 3;
+  const dx = (toVc - fromVc) * TSQ;
+  const dy = (toVr - fromVr) * TSQ;
+
+  const fly = document.createElement('div');
+  fly.style.cssText = `position:fixed;left:${fromX}px;top:${fromY}px;width:${TSQ}px;height:${TSQ}px;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:1000;will-change:transform;transition:transform 0.15s cubic-bezier(.25,.8,.25,1)`;
+
+  const img = document.createElement('img');
+  img.src = IMGS[piece] || '';
+  img.style.cssText = 'width:88%;height:88%;object-fit:contain;display:block;';
+  fly.appendChild(img);
+  document.body.appendChild(fly);
+
+  let done = false;
+  const abort = () => { if(done) return; done=true; fly.remove(); if(fromImg) fromImg.style.opacity='1'; onDone(); };
+
+  fly.getBoundingClientRect();
+  fly.style.transform = `translate(${dx}px,${dy}px)`;
+
+  fly.addEventListener('transitionend', () => {
+    if (done) return;
+    // Add red X badge
+    const xBadge = document.createElement('div');
+    xBadge.style.cssText = `position:absolute;top:4px;right:4px;width:20px;height:20px;border-radius:50%;background:#e74c3c;color:#fff;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center;pointer-events:none;animation:checkPop 0.18s cubic-bezier(.34,1.56,.64,1) forwards`;
+    xBadge.textContent = '✕';
+    fly.appendChild(xBadge);
+
+    // Pause, then animate back to source
+    setTimeout(() => {
+      if (done) return;
+      fly.style.transition = 'transform 0.18s cubic-bezier(.25,.8,.25,1)';
+      fly.style.transform = 'translate(0,0)';
+      fly.addEventListener('transitionend', abort, { once: true });
+      setTimeout(abort, 400);
+    }, 550);
+  }, { once: true });
+
+  setTimeout(abort, 1800); // overall fallback
+}
+
+function animateTrainerPiece(fr, fc, tr, tc, piece, onDone) {
+  const boardEl = document.getElementById('trainerBoard');
+  if (!boardEl) { onDone(); return; }
+  const boardRect = boardEl.getBoundingClientRect();
+  const isFlipped = TS && TS.data.playerColor === 'black';
+  const TSQ = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--tsq')) || 60;
+
+  const fromVr = isFlipped ? 7-fr : fr, fromVc = isFlipped ? 7-fc : fc;
+  const toVr   = isFlipped ? 7-tr : tr, toVc   = isFlipped ? 7-tc : tc;
+
+  const squares = boardEl.querySelectorAll('.t-sq');
+  const fromEl = squares[fromVr * 8 + fromVc];
+  if (fromEl) { const im = fromEl.querySelector('img'); if(im) im.style.opacity='0'; }
+
+  const fromX = boardRect.left + fromVc * TSQ + 3;
+  const fromY = boardRect.top  + fromVr * TSQ + 3;
+  const dx    = (toVc - fromVc) * TSQ;
+  const dy    = (toVr - fromVr) * TSQ;
+
+  const fly = document.createElement('div');
+  fly.style.cssText = `position:fixed;left:${fromX}px;top:${fromY}px;width:${TSQ}px;height:${TSQ}px;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:1000;will-change:transform;transition:transform 0.15s cubic-bezier(.25,.8,.25,1)`;
+
+  const img = document.createElement('img');
+  img.src = IMGS[piece] || '';
+  img.style.cssText = 'width:88%;height:88%;object-fit:contain;display:block;';
+  fly.appendChild(img);
+  document.body.appendChild(fly);
+
+  let done = false;
+  const finish = () => { if(done) return; done=true; fly.remove(); onDone(); };
+
+  fly.getBoundingClientRect(); // force reflow
+  fly.style.transform = `translate(${dx}px,${dy}px)`;
+
+  fly.addEventListener('transitionend', finish, { once: true });
+  setTimeout(finish, 300);
+}
+
+function playAutoStep() {
+  if(!TS || TS.stepIdx >= TS.data.steps.length) return;
+  const step = TS.data.steps[TS.stepIdx];
+  if(!step.auto) return;
+  showStepInstruction();
+  const piece = TS.board[step.from[0]*8+step.from[1]];
+  setTimeout(() => {
+    applyTrainerMove(step);
+    TS.stepIdx++;
+    animateTrainerPiece(step.from[0], step.from[1], step.to[0], step.to[1], piece, () => {
+      renderTrainer();
+      if(TS.stepIdx >= TS.data.steps.length) { finishTrainer(); return; }
+      const next = TS.data.steps[TS.stepIdx];
+      if(next.auto) setTimeout(playAutoStep, 600);
+      else showStepInstruction();
+    });
+  }, 500);
+}
+
+function applyTrainerMove(step) {
+  const b = TS.board;
+  const {from,to,castle} = step;
+  b[to[0]*8+to[1]] = b[from[0]*8+from[1]];
+  b[from[0]*8+from[1]] = '.';
+  if(castle) {
+    b[castle.rookTo[0]*8+castle.rookTo[1]] = b[castle.rookFrom[0]*8+castle.rookFrom[1]];
+    b[castle.rookFrom[0]*8+castle.rookFrom[1]] = '.';
+  }
+  TS.lastFrom = from; TS.lastTo = to;
+  // Add to move log
+  const isWhiteMove = b[to[0]*8+to[1]] !== '.' && b[to[0]*8+to[1]] === b[to[0]*8+to[1]].toUpperCase();
+  TS.moveLog.push({notation: step.notation, white: !step.auto ? (TS.data.playerColor==='white') : (TS.data.playerColor==='black')});
+  updateMoveLog();
+}
+
+function showCheckBadge(r, c) {
+  const isFlipped = TS && TS.data.playerColor === 'black';
+  const vr = isFlipped ? 7-r : r;
+  const vc = isFlipped ? 7-c : c;
+  const sq = document.querySelectorAll('#trainerBoard .t-sq')[vr * 8 + vc];
+  if (!sq) return;
+  const badge = document.createElement('div');
+  badge.className = 'check-badge';
+  badge.textContent = '✓';
+  sq.appendChild(badge);
+  setTimeout(() => {
+    badge.style.transition = 'opacity 0.25s';
+    badge.style.opacity = '0';
+    setTimeout(() => badge.remove(), 250);
+  }, 900);
+}
+
+function updateMoveLog() {
+  const log = document.getElementById('tMoveLog');
+  if(!TS.moveLog.length){log.innerHTML='—';return;}
+  let html=''; let move=1;
+  for(let i=0;i<TS.moveLog.length;i+=2){
+    html += `<span>${move}. </span>`;
+    html += `<span class="w-move">${TS.moveLog[i].notation}</span> `;
+    if(TS.moveLog[i+1]) html += `<span class="b-move">${TS.moveLog[i+1].notation}</span> `;
+    move++;
+  }
+  log.innerHTML = html;
+}
+
+function handleTrainerClick(r,c) {
+  if(!TS || TS.wrongFlash) return;
+  const stepIdx = TS.stepIdx;
+  if(stepIdx >= TS.data.steps.length) return;
+  const step = TS.data.steps[stepIdx];
+  if(step.auto) return;
+
+  const piece = TS.board[r*8+c];
+  const playerIsWhite = TS.data.playerColor === 'white';
+  // Only allow selecting the player's own pieces
+  const isOwn = p => p && p!=='.' && (playerIsWhite ? p===p.toUpperCase() : p===p.toLowerCase());
+
+  if(!TS.selected) {
+    if(isOwn(piece)) { TS.selected=[r,c]; renderTrainer(); }
+    return;
+  }
+
+  const [sr,sc] = TS.selected;
+
+  // Deselect on same square
+  if(sr===r && sc===c) { TS.selected=null; renderTrainer(); return; }
+
+  // Re-select another own piece
+  if(isOwn(piece)) { TS.selected=[r,c]; renderTrainer(); return; }
+
+  // Validate move
+  const correct = sr===step.from[0] && sc===step.from[1] && r===step.to[0] && c===step.to[1];
+  if(correct) {
+    document.getElementById('tFeedback').className='feedback-bar good';
+    document.getElementById('tFeedback').textContent='✓ Correct!';
+    const piece = TS.board[sr*8+sc];
+    const toR = r, toC = c;
+    TS.selected=null;
+    applyTrainerMove(step);
+    TS.stepIdx++;
+    animateTrainerPiece(sr, sc, toR, toC, piece, () => {
+      renderTrainer();
+      showCheckBadge(toR, toC);
+      setTimeout(()=>{
+        document.getElementById('tFeedback').className='feedback-bar';
+        if(TS.stepIdx >= TS.data.steps.length){finishTrainer();return;}
+        const next = TS.data.steps[TS.stepIdx];
+        if(next.auto) playAutoStep();
+        else showStepInstruction();
+      }, 300);
+    });
+  } else {
+    TS.wrongFlash=true;
+    const wrongPiece = TS.board[sr*8+sc];
+    TS.selected=null;
+    document.getElementById('tFeedback').className='feedback-bar wrong';
+    document.getElementById('tFeedback').textContent='✗ Not quite — try again!';
+    renderTrainer();
+    animateWrongMove(sr, sc, r, c, wrongPiece, () => {
+      TS.wrongFlash=false;
+      document.getElementById('tFeedback').className='feedback-bar';
+      renderTrainer();
+    });
+  }
+}
+
+function finishTrainer() {
+  updateDots();
+  document.getElementById('tDone').classList.add('visible');
+  document.getElementById('tInstr-hint') && (document.getElementById('tInstr-hint').textContent='');
+  // Play success animation on dots
+  TS.data.steps.forEach((_,i)=>{
+    const d=document.getElementById('dot-'+i);
+    if(d) d.className='step-dot done';
+  });
+}
+
+function getTrainerMoves(board, r, c) {
+  const piece = board[r*8+c];
+  if (!piece || piece === '.') return [];
+  const isWhite = piece === piece.toUpperCase();
+  const inB = (r,c) => r>=0&&r<8&&c>=0&&c<8;
+  const get = (r,c) => inB(r,c) ? board[r*8+c] : null;
+  const empty = p => !p || p==='.';
+  const enemy = p => p && p!=='.' && (isWhite ? p===p.toLowerCase() : p===p.toUpperCase());
+  const own   = p => p && p!=='.' && (isWhite ? p===p.toUpperCase() : p===p.toLowerCase());
+  const moves = [];
+  const t = piece.toUpperCase();
+
+  if (t==='P') {
+    const dir = isWhite ? -1 : 1;
+    const start = isWhite ? 6 : 1;
+    if (inB(r+dir,c) && empty(get(r+dir,c))) {
+      moves.push([r+dir,c]);
+      if (r===start && empty(get(r+2*dir,c))) moves.push([r+2*dir,c]);
+    }
+    for (const dc of [-1,1])
+      if (inB(r+dir,c+dc) && enemy(get(r+dir,c+dc))) moves.push([r+dir,c+dc]);
+  }
+  if (t==='N') {
+    for (const [dr,dc] of [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]])
+      if (inB(r+dr,c+dc) && !own(get(r+dr,c+dc))) moves.push([r+dr,c+dc]);
+  }
+  if (t==='B'||t==='Q') {
+    for (const [dr,dc] of [[-1,-1],[-1,1],[1,-1],[1,1]]) {
+      let nr=r+dr,nc=c+dc;
+      while(inB(nr,nc)){if(own(get(nr,nc)))break;moves.push([nr,nc]);if(enemy(get(nr,nc)))break;nr+=dr;nc+=dc;}
+    }
+  }
+  if (t==='R'||t==='Q') {
+    for (const [dr,dc] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+      let nr=r+dr,nc=c+dc;
+      while(inB(nr,nc)){if(own(get(nr,nc)))break;moves.push([nr,nc]);if(enemy(get(nr,nc)))break;nr+=dr;nc+=dc;}
+    }
+  }
+  if (t==='K') {
+    for (const [dr,dc] of [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]])
+      if (inB(r+dr,c+dc) && !own(get(r+dr,c+dc))) moves.push([r+dr,c+dc]);
+  }
+  return moves;
+}
+
+function renderTrainer() {
+  if(!TS) return;
+  const boardEl = document.getElementById('trainerBoard');
+  boardEl.innerHTML='';
+  const step = TS.stepIdx < TS.data.steps.length ? TS.data.steps[TS.stepIdx] : null;
+  const isFlipped = TS.data.playerColor === 'black';
+  // Show the selected piece's legal-move dots only on the player's turn
+  const playerTurn = step && !step.auto && !TS.wrongFlash;
+  let dots = [];
+  if (TS.selected && playerTurn) {
+    dots = getTrainerMoves(TS.board, TS.selected[0], TS.selected[1]);
+    if (step.castle && TS.selected[0] === step.from[0] && TS.selected[1] === step.from[1]) dots = dots.concat([step.to]);
+  }
+  for (let vr = 0; vr < 8; vr++) for (let vc = 0; vc < 8; vc++) {
+    const r = isFlipped ? 7 - vr : vr, c = isFlipped ? 7 - vc : vc;
+    const sq = document.createElement('div');
+    sq.className = 't-sq ' + ((r + c) % 2 === 0 ? 'light' : 'dark');
+    if (TS.lastFrom && TS.lastFrom[0] === r && TS.lastFrom[1] === c) sq.classList.add('t-last-from');
+    if (TS.lastTo && TS.lastTo[0] === r && TS.lastTo[1] === c) sq.classList.add('t-last-to');
+    if (TS.selected && TS.selected[0] === r && TS.selected[1] === c) sq.classList.add('t-selected');
+    if (playerTurn && !TS.selected && step.from[0] === r && step.from[1] === c) sq.classList.add('t-hint');
+    if (dots.some(([mr, mc]) => mr === r && mc === c)) {
+      sq.classList.add('t-legal');
+      if (TS.board[r * 8 + c] && TS.board[r * 8 + c] !== '.') sq.classList.add('t-has-piece');
+    }
+    const p = TS.board[r * 8 + c];
+    if (p && p !== '.' && IMGS[p]) {
+      const im = document.createElement('img');
+      im.src = IMGS[p];
+      im.draggable = false;
+      sq.appendChild(im);
+    }
+    sq.addEventListener('click', () => handleTrainerClick(r, c));
+    boardEl.appendChild(sq);
+  }
+  // Keep the file/rank labels aligned with board orientation
+  const files = isFlipped ? ['h','g','f','e','d','c','b','a'] : ['a','b','c','d','e','f','g','h'];
+  const ranks = isFlipped ? [1,2,3,4,5,6,7,8] : [8,7,6,5,4,3,2,1];
+  const cEl = document.getElementById('tCoords');
+  if (cEl) cEl.innerHTML = files.map(f => '<span>' + f + '</span>').join('');
+  const rEl = document.getElementById('tRanks');
+  if (rEl) rEl.innerHTML = ranks.map(n => '<span>' + n + '</span>').join('');
+}
+
+// Close the trainer overlay with the Escape key
+window.addEventListener('keydown', (e) => {
+  const o = document.getElementById('trainerOverlay');
+  if (o && o.classList.contains('open') && e.key === 'Escape') closeTrainer();
+});
+</script>
+
+<!-- Learn More lesson engine (defines openLesson, closeLesson, toggleStudy, etc.) -->
+<script src="london_lesson.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script src="auth.js"></script>
+</body>
+</html>
